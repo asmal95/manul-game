@@ -1,0 +1,53 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<title>Манул — пиксель превью</title>
+<style>
+body{background:#1a1c2c;color:#eee;font-family:monospace;padding:20px}
+.pixel{image-rendering:pixelated;width:128px;height:128px;background:#222}
+.tile{image-rendering:pixelated;width:64px;height:64px}
+.row{display:flex;gap:16px;align-items:end;flex-wrap:wrap}
+.card{background:#2a2d44;padding:12px;border-radius:8px;text-align:center}
+.scene{image-rendering:pixelated;width:480px;max-width:90vw;border:4px solid #000}
+</style></head><body>
+<h1>🐾 Манул-лес — v0.1 пиксель-арт</h1>
+<h2>Кот-манул 16x16</h2>
+<div class="row">
+<div class="card"><img class="pixel" src="assets/sprites/manul_idle.png"><br>idle</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_walk1.png"><br>walk1</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_walk2.png"><br>walk2</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_sleep.png"><br>sleep</div>
+</div>
+<h2>Большой манул 32x32 (текущий в игре)</h2>
+<div class="row">
+<div class="card"><img class="pixel" src="assets/sprites/manul_big_idle.png"><br>big_idle</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_big_walk1.png"><br>big_walk1</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_big_walk2.png"><br>big_walk2</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_big_jump.png"><br>big_jump</div>
+</div>
+<h2>Манул сбоку 16x16 (для платформера)</h2>
+<div class="row">
+<div class="card"><img class="pixel" src="assets/sprites/manul_side_idle.png"><br>side_idle</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_side_walk1.png"><br>side_walk1</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_side_walk2.png"><br>side_walk2</div>
+<div class="card"><img class="pixel" src="assets/sprites/manul_side_jump.png"><br>side_jump</div>
+</div>
+<h2>Тайлы 16x16</h2>
+<div class="row">
+<div class="card"><img class="tile" src="assets/tiles/grass.png"><br>grass</div>
+<div class="card"><img class="tile" src="assets/tiles/tree.png"><br>tree</div>
+<div class="card"><img class="tile" src="assets/tiles/anomaly.png"><br>anomaly</div>
+<div class="card"><img class="tile" src="assets/tiles/mushroom.png"><br>mushroom</div>
+<div class="card"><img class="tile" src="assets/tiles/bush_stone.png"><br>bush_stone</div>
+</div>
+<h2>Тестовая сцена</h2>
+<canvas id="scene" width="120" height="80" class="scene"></canvas>
+<script>
+const files=["assets/tiles/grass.png","assets/tiles/tree.png","assets/tiles/anomaly.png","assets/tiles/mushroom.png","assets/sprites/manul_idle.png"];
+Promise.all(files.map(s=>new Promise(r=>{const i=new Image();i.src=s;i.onload=()=>r(i)}))).then(([grass,tree,anom,mush,cat])=>{
+const c=document.getElementById('scene'),x=c.getContext('2d');x.imageSmoothingEnabled=false;
+for(let ty=0;ty<5;ty++)for(let tx=0;tx<8;tx++)x.drawImage(grass,tx*16,ty*16);
+x.drawImage(tree,16,8);x.drawImage(tree,80,0);x.drawImage(anom,48,32);
+x.drawImage(mush,16,48);x.drawImage(cat,56,48);
+});
+</script>
+<p>Открой этот файл в браузере. Спрайты лежат в assets/. Генератор: generate_sprites.py</p>
+</body></html>

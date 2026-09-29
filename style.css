@@ -1,0 +1,19 @@
+*{box-sizing:border-box}
+body{background:#12141f;color:#e8e0cf;font-family:monospace;margin:0;padding:16px;display:flex;justify-content:center}
+.wrap{width:960px;max-width:96vw}
+h1{font-size:18px;margin:0 0 8px} h1 small{color:#7ee081;font-weight:normal}
+.hud{display:flex;gap:16px;align-items:center;margin-bottom:8px;font-size:13px;flex-wrap:wrap}
+#shrooms,#timer,#lives,#level{background:#2a2d44;padding:4px 10px;border-radius:6px}
+#msg{color:#ffd83d}
+.keys{color:#8a8fa8}
+canvas{width:960px;max-width:96vw;image-rendering:pixelated;image-rendering:crisp-edges;background:#0b0e1a;border:4px solid #000;border-radius:8px;touch-action:none}
+.hint{color:#8a8fa8;font-size:12px}
+/* Сенсорные кнопки: видны только на тач-устройствах */
+#touch{display:none;justify-content:space-between;align-items:center;margin-top:10px;user-select:none;-webkit-user-select:none}
+#touch button{font-size:28px;width:76px;height:76px;border-radius:50%;border:2px solid #7ee081;background:rgba(42,45,68,.85);color:#eee;touch-action:none}
+#touch button:active{background:#7ee081;color:#12141f}
+.tmove{display:flex;gap:16px}
+#btn-restart,#btn-mute{font-family:monospace;font-size:13px;padding:4px 12px;border-radius:6px;border:1px solid #8a8fa8;background:#2a2d44;color:#eee;cursor:pointer}
+#btn-restart:hover,#btn-mute:hover{background:#7ee081;color:#12141f}
+#btn-jump{width:92px;height:92px;font-size:36px;border-color:#ffd83d}
+@media (pointer:coarse){ #touch{display:flex} }
