@@ -63,6 +63,60 @@ const LEVELS = [
 "TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTT",
 "TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTT",
   ] },
+  { name: 'Мшистый овраг', pits: [[20, 22], [40, 42]], map: [
+"............................................................",
+"............................................................",
+"............................................................",
+"............................................................",
+".........M..................................................",
+".......#####................................................",
+".............................M..............................",
+"...............PPP..........AAAA............................",
+"........M...................AAAA................M...........",
+"......######................AAAA..............######........",
+"................M...................M................M......",
+".S....F............PPPPP....AAAA.F.....PPPPP......F......E..",
+"############################################################",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+  ] },
+  { name: 'Туманная чаща', pits: [[14, 16], [33, 35]], map: [
+"............................................................",
+"............................................................",
+"............................................................",
+"............................................................",
+"..................................................M.........",
+"............................................AAAA######......",
+".......................M....................AAAA............",
+"............................................AAAA............",
+"..........M...........AAAA..................AAAAM...........",
+"........#####.........AAAA..................AAAA............",
+"................M............M.......................M......",
+".S....F......PPPPP....AAAA.F....PPPPP....F..AAAA....F....E..",
+"############################################AAAA############",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTT",
+  ] },
+  { name: 'Сердце леса', pits: [[24, 26], [41, 43]], map: [
+"............................................................",
+"............................................................",
+"............................................................",
+"............................................................",
+".........M.........................................M........",
+".......#####.................................AAAA######.....",
+"...............................M.............AAAA...........",
+"...............PPP............AAAA...........AAAA...........",
+"........M.....................AAAA...........AAAA...........",
+"......######..................AAAA...........AAAA...........",
+"................M.................M..................M......",
+".S......F...........F..PPPPP..AAAA..F...PPPPPAAAA...F....E..",
+"#############################################AAAA###########",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
+  ] },
 ];
 // A = аномалия (низкая гравитация), M = добыча, S = спавн, E = выход, F = лиса,
 // # = земля, P = платформа-мост, T = земля-фон (тоже solid)
@@ -128,6 +182,8 @@ function reset(full){
   }
   total = shrooms.length;
   player.vx = 0; player.vy = 0;
+  // лисы стартуют ОТ манула (вежливость): справа от спавна — вправо, слева — влево
+  for (const f of foes){ f.d0 = f.sx >= spawnX ? 1 : -1; f.dir = f.d0; }
   document.getElementById('level').textContent = '🌲 ' + (levelIdx+1) + '/' + LEVELS.length;
   document.getElementById('msg').textContent = 'Собери всю добычу — перепёлок и крыс!';
   updateHud();
@@ -147,7 +203,7 @@ function startDeath(){
 function respawn(){
   player.x = spawnX; player.y = spawnY; player.vx = 0; player.vy = 0;
   player.coyote = 0; player.buffer = 0; wasAnom = false;
-  for (const f of foes){ if (f.alive){ f.x = f.sx; f.y = f.sy; f.vy = 0; f.dir = -1; } }
+  for (const f of foes){ if (f.alive){ f.x = f.sx; f.y = f.sy; f.vy = 0; f.dir = f.d0; } }
     document.getElementById('msg').textContent = taken===total ? 'Вся добыча собрана! Беги на зелёную поляну →' : 'Собери всю добычу — перепёлок и крыс!';
 }
 function doGameOver(){
@@ -166,6 +222,14 @@ addEventListener('keydown', e=>{
   if (e.code==='KeyR'){ sfx.click(); reset(); }
   if (e.code==='KeyM') toggleMute();
   if (e.code==='KeyN') toggleMusic();
+  // дебаг для теста: цифры 1-6 — прыжок на уровень (жизни сохраняются, таймер заново)
+  if (e.code.indexOf('Digit')===0){
+    var n = +e.code.slice(5);
+    if (n>=1 && n<=LEVELS.length){
+      levelIdx = n-1; sfx.click(); reset(false);
+      document.getElementById('msg').textContent = '🛠 Тест: уровень ' + n + ': ' + LEVELS[levelIdx].name;
+    }
+  }
 });
 addEventListener('keyup', e=> keys[e.code] = false);
 
@@ -314,7 +378,7 @@ function foePhysics(dt){
       }
     }
     // страховка: провалилась за мир — вернуть на спавн
-    if (f.y > ROWS*TILE+40){ f.x=f.sx; f.y=f.sy; f.vy=0; f.dir=-1; }
+    if (f.y > ROWS*TILE+40){ f.x=f.sx; f.y=f.sy; f.vy=0; f.dir=f.d0; }
   }
 }
 

@@ -83,11 +83,19 @@ async function framesDt(n, t0, dt) {
   console.log('lives после касания лисы:', g('lives'), '(ждём 1)');
   t = await frames(120, t); // ждём респаун
   console.log('после респауна: lives =', g('lives'), 'x =', g('player.x'), 'лиса0 всё ещё мертва:', g('foes[0].alive') === false);
-  // 8) финал 3 уровня
+  // 8) переходы по остальным уровням до последнего
+  while (g('levelIdx') < 5) {
+    vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
+    guard = 0;
+    const li = g('levelIdx');
+    while (g('levelIdx') === li && guard++ < 100) t = await frames(10, t);
+  }
+  console.log('levelIdx:', g('levelIdx'), '(ждём 5)');
+  // 9) финал последнего уровня
   vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
   guard = 0;
   while (!g('won') && guard++ < 100) t = await frames(10, t);
   console.log('won:', g('won'), '(ждём true)');
-  if (g('lives') === 1 && g('levelIdx') === 2 && g('won') === true) console.log('TEST PASS: смерть, лисы, переходы и финал работают');
+  if (g('lives') === 1 && g('levelIdx') === 5 && g('won') === true) console.log('TEST PASS: смерть, лисы, переходы и финал работают');
   else { console.log('TEST FAIL'); process.exit(1); }
 })();
