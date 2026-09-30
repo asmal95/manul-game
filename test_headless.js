@@ -83,19 +83,40 @@ async function framesDt(n, t0, dt) {
   console.log('lives после касания лисы:', g('lives'), '(ждём 1)');
   t = await frames(120, t); // ждём респаун
   console.log('после респауна: lives =', g('lives'), 'x =', g('player.x'), 'лиса0 всё ещё мертва:', g('foes[0].alive') === false);
-  // 8) переходы по остальным уровням до последнего
-  while (g('levelIdx') < 5) {
+  // 8) переходы до 7 уровня («Схрон», idx 6)
+  while (g('levelIdx') < 6) {
     vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
     guard = 0;
     const li = g('levelIdx');
     while (g('levelIdx') === li && guard++ < 100) t = await frames(10, t);
   }
-  console.log('levelIdx:', g('levelIdx'), '(ждём 5)');
-  // 9) финал последнего уровня
+  console.log('levelIdx:', g('levelIdx'), '(ждём 6)');
+  // 9) коробочка: прыжок стоя на ней -> used, дроп падает и подбирается (+1 к taken)
+  console.log('коробок:', g('boxes.length'), '(ждём 3), total:', g('total'), '(ждём 10)');
+  vm.runInContext('player.x = boxes[0].x; player.y = boxes[0].y - 24; player.vx = 0; player.vy = 0;', sandbox);
+  t = await frames(10, t); // приземлиться на коробку
+  vm.runInContext('player.buffer = 0.12;', sandbox);
+  guard = 0;
+  while (!g('boxes[0].used') && guard++ < 50) t = await frames(5, t);
+  console.log('box0 used:', g('boxes[0].used'), '(ждём true), дропов:', g('drops.length'), '(ждём 1)');
+  t = await frames(30, t); // дроп падает на землю
+  const takenBefore = g('taken');
+  vm.runInContext('player.x = drops[0].x; player.y = drops[0].y - 10; player.vx = 0; player.vy = 20;', sandbox);
+  guard = 0;
+  while (g('taken') === takenBefore && guard++ < 50) t = await frames(5, t);
+  console.log('taken:', g('taken'), '(ждём ' + (takenBefore + 1) + ')');
+  // 10) переход на 8 уровень и финал
+  while (g('levelIdx') < 7) {
+    vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
+    guard = 0;
+    const li = g('levelIdx');
+    while (g('levelIdx') === li && guard++ < 100) t = await frames(10, t);
+  }
+  console.log('levelIdx:', g('levelIdx'), '(ждём 7)');
   vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
   guard = 0;
   while (!g('won') && guard++ < 100) t = await frames(10, t);
   console.log('won:', g('won'), '(ждём true)');
-  if (g('lives') === 1 && g('levelIdx') === 5 && g('won') === true) console.log('TEST PASS: смерть, лисы, переходы и финал работают');
+  if (g('lives') === 1 && g('levelIdx') === 7 && g('won') === true) console.log('TEST PASS: смерть, лисы, коробки, переходы и финал работают');
   else { console.log('TEST FAIL'); process.exit(1); }
 })();

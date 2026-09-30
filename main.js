@@ -6,7 +6,8 @@ ctx.imageSmoothingEnabled = false;
 
 // Уровень: 60x16 тайлов (960x256 px). Камера следует за котом.
 // Уровни: каждый — имя + ASCII-карта + список пропастей [x0,x1] (режутся кодом, ряды 12+).
-// Легенда: # земля, P мост, A аномалия (низкая гравитация), M добыча (перепёлка/крыса), S спавн,
+// Легенда: # земля, P мост, A аномалия (низкая гравитация), M добыча (перепёлка/крыса),
+// B коробочка-сюрприз (solid; прыжок стоя на ней роняет добычу вниз), S спавн,
 // E выход (маркер, не solid), T земля-фон (тоже solid), F лиса (враг, не solid), . пусто.
 const LEVELS = [
   { name: 'Опушка', pits: [[30,32],[45,46]], map: [
@@ -110,15 +111,51 @@ const LEVELS = [
 "...............PPP............AAAA...........AAAA...........",
 "........M.....................AAAA...........AAAA...........",
 "......######..................AAAA...........AAAA...........",
-"................M.................M..................M......",
-".S......F...........F..PPPPP..AAAA..F...PPPPPAAAA...F....E..",
+"................M.................M...........A......M......",
+".S......F...........F..PPPPP..AAAA..F...PPPPPPAAA...F....E..",
 "#############################################AAAA###########",
 "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
 "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
 "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
   ] },
+  { name: 'Схрон', pits: [[18,20],[38,40]], map: [
+"............................................................",
+"............................................................",
+"............................................................",
+"............................................................",
+".........M..................................................",
+".......#####................................................",
+".............................M..............................",
+"...............PPP..........AAAA............................",
+"........M...................AAAA...............M............",
+"......######............B...AAAA..B........B.######.........",
+"................M...................M................M......",
+".S....F.....F....PPPPPP.....AAAAP....PPPPP........F......E..",
+"############################AAAA############################",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+  ] },
+  { name: 'Бурелом', pits: [[22,24],[42,44]], map: [
+"............................................................",
+"............................................................",
+"............................................................",
+"............................................................",
+"....................................................M.......",
+"..................................................######....",
+"...............M............................................",
+"..............AAAA............................AAAA..........",
+"..........M...AAAA........................M...AAAA..........",
+"........#####.AAAA........B.......B.....B.....AAAA..........",
+"............................M..................A.....M......",
+".S....F.....F.AAAA...PPPPP....F..........PPPPPPAAA..F....E..",
+"##############################################AAAA##########",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTT",
+  ] },
 ];
-// A = аномалия (низкая гравитация), M = добыча, S = спавн, E = выход, F = лиса,
+// A = аномалия (низкая гравитация), M = добыча, B = коробочка, S = спавн, E = выход, F = лиса,
 // # = земля, P = платформа-мост, T = земля-фон (тоже solid)
 
 // вырезаем пропасти один раз на старте (по списку pits каждого уровня)
@@ -136,6 +173,8 @@ function load(src){ return new Promise(res=>{ const i=new Image(); i.src=src; i.
 const player = { x:0, y:0, w:16, h:24, vx:0, vy:0, onGround:false, face:1, coyote:0, buffer:0, anim:0 };
 let shrooms = [], taken = 0, total = 0, won = false;
 let foes = []; // лисы: {x,y,w,h,dir,vy,sx,sy,alive,anim,grounded}
+let boxes = []; // коробочки: {tx,ty,x,y,used,kind}
+let drops = []; // выпавшая добыча: {x,y,vy,got,landed,kind}
 let camX = 0;
 // жизни по-марио: упал в пропасть — минус жизнь, все кончились — game over
 let lives = 3, dying = 0, gameover = false, spawnX = 0, spawnY = 0;
@@ -149,7 +188,7 @@ function solidAt(tx, ty){
   if (ty<0) return true;
   if (ty>=ROWS) return false; // дна нет — упавший в пропасть летит вниз до экрана смерти
   const c = LEVEL[ty][tx];
-  return c==='#' || c==='P' || c==='T';
+  return c==='#' || c==='P' || c==='T' || c==='B';
 }
 function tileAt(px, py){
   const row = LEVEL[Math.floor(py/TILE)];
@@ -169,7 +208,7 @@ function reset(full){
   LEVEL = LEVELS[levelIdx].map; ROWS = LEVEL.length; COLS = LEVEL[0].length;
   EXIT = {x: 0, y: 0, w: 24, h: 32};
   shrooms = []; taken = 0; won = false;
-  foes = [];
+  foes = []; boxes = []; drops = [];
   dying = 0; gameover = false; wasAnom = false;
   t0 = performance.now(); finalTime = 0; lastSec = -1; exitHint = false;
   document.getElementById('timer').textContent = '⏱ 0:00';
@@ -177,10 +216,11 @@ function reset(full){
     const c = LEVEL[y][x];
     if (c==='S'){ spawnX=x*TILE+2; spawnY=y*TILE-20; player.x=spawnX; player.y=spawnY; }
     if (c==='M'){ shrooms.push({x:x*TILE, y:y*TILE, got:false, kind:(shrooms.length%2===0)?'q':'r'}); }
+    if (c==='B'){ boxes.push({tx:x, ty:y, x:x*TILE, y:y*TILE, used:false, kind:(boxes.length%2===0)?'q':'r'}); }
     if (c==='E'){ EXIT.x=x*TILE; EXIT.y=y*TILE; }
     if (c==='F'){ foes.push({x:x*TILE-2, y:y*TILE+2, w:20, h:14, dir:-1, vy:0, sx:x*TILE-2, sy:y*TILE+2, alive:true, anim:Math.random()*2, grounded:false}); }
   }
-  total = shrooms.length;
+  total = shrooms.length + boxes.length;
   player.vx = 0; player.vy = 0;
   // лисы стартуют ОТ манула (вежливость): справа от спавна — вправо, слева — влево
   for (const f of foes){ f.d0 = f.sx >= spawnX ? 1 : -1; f.dir = f.d0; }
@@ -262,6 +302,7 @@ const sfx = {
   denied(){ tone(180, 110, 0.22, 'sawtooth', 0.09); },
   die(){ tone(250, 700, 0.16, 'square', 0.10); tone(700, 90, 0.45, 'square', 0.10, 0.16); },
   stomp(){ tone(500, 150, 0.15, 'square', 0.11); tone(900, 900, 0.08, 'sine', 0.10, 0.05); },
+  box(){ tone(200, 800, 0.12, 'square', 0.10); tone(1200, 1200, 0.08, 'sine', 0.09, 0.10); },
   win(){ const n=[523,659,784,1046]; for (let i=0;i<n.length;i++) tone(n[i], n[i], 0.14, 'triangle', 0.11, i*0.11); },
   lose(){ const n=[659,523,440,330]; for (let i=0;i<n.length;i++) tone(n[i], n[i]*0.98, 0.25, 'triangle', 0.11, i*0.17); },
   anomaly(){ tone(200, 900, 0.35, 'sine', 0.05); },
@@ -413,6 +454,19 @@ function physics(dt, anom){
   player.anim += dt * (Math.abs(player.vx)>10 && player.onGround ? 10 : 3);
 }
 
+// коробочка: приземление на неё открывает разок; добыча падает строго вниз
+// (коробки висят высоко — под ними свободно проходит кот 24px, см. правило в AGENTS.md).
+function openBoxAt(tx, ty){
+  for (const b of boxes){
+    if (!b.used && b.tx===tx && b.ty===ty){
+      b.used = true;
+      drops.push({x:b.x, y:b.y+16, vy:0, got:false, landed:false, kind:b.kind});
+      sfx.box();
+      break;
+    }
+  }
+}
+
 function collide(isX){
   const x0=Math.floor(player.x/TILE), x1=Math.floor((player.x+player.w)/TILE);
   const y0=Math.floor(player.y/TILE), y1=Math.floor((player.y+player.h)/TILE);
@@ -424,7 +478,7 @@ function collide(isX){
         player.x = player.vx>0 ? bx-player.w-0.01 : bx+TILE+0.01;
         player.vx = 0;
       } else {
-        if (player.vy>0){ player.y=by-player.h-0.01; player.onGround=true; player.coyote=0.1; }
+        if (player.vy>0){ player.y=by-player.h-0.01; player.onGround=true; player.coyote=0.1; openBoxAt(tx, ty); }
         else if (player.vy<0){ player.y=by+TILE+0.01; }
         player.vy = 0;
       }
@@ -434,14 +488,15 @@ function collide(isX){
 
 let IM = {};
 async function boot(){
-  const [idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2] = await Promise.all([
+  const [idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2,box,boxopen] = await Promise.all([
     load('assets/sprites/manul_big_idle.png'), load('assets/sprites/manul_big_walk1.png'),
     load('assets/sprites/manul_big_walk2.png'), load('assets/sprites/manul_big_jump.png'),
     load('assets/tiles/grass.png'),
     load('assets/tiles/tree.png'), load('assets/tiles/anomaly.png'), load('assets/tiles/quail.png'), load('assets/tiles/rat.png'),
     load('assets/sprites/fox_walk1.png'), load('assets/sprites/fox_walk2.png'),
+    load('assets/tiles/box.png'), load('assets/tiles/box_open.png'),
   ]);
-  IM = {idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2};
+  IM = {idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2,box,boxopen};
   reset();
   requestAnimationFrame(loop);
 }
@@ -495,16 +550,32 @@ function loop(t){
       if (taken===total) document.getElementById('msg').textContent='Вся добыча собрана! Беги на зелёную поляну →';
     }
   }
+  // выпавшая из коробочек: сначала падает, затем подбирается как обычно
+  for (const d of drops){
+    if (dying > 0 || gameover) break;
+    if (!d.got && !d.landed){
+      d.vy = Math.min(d.vy + 980*dt, 520);
+      d.y += d.vy*dt;
+      var gtx = Math.floor((d.x+8)/TILE), gty = Math.floor((d.y+16)/TILE);
+      if (solidAt(gtx, gty)){ d.y = gty*TILE-16; d.vy = 0; d.landed = true; }
+      if (d.y > ROWS*TILE+40){ d.y = ROWS*TILE-16; d.vy = 0; d.landed = true; } // страховка
+    }
+    if (!d.got && Math.abs(cx-(d.x+8))<12 && Math.abs(cy-(d.y+8))<14){
+      d.got=true; taken++; sfx.pickup(); updateHud();
+      if (taken===total) document.getElementById('msg').textContent='Вся добыча собрана! Беги на зелёную поляну →';
+    }
+  }
   // таймер (стоит на паузе после победы или конца игры)
   const elapsed = (won || gameover) ? finalTime : (performance.now()-t0)/1000;
   const sec = Math.floor(elapsed);
   if (sec !== lastSec){ lastSec = sec; document.getElementById('timer').textContent = '⏱ ' + fmt(elapsed); }
 
   // выход: засчитывается только КАСАНИЕ зоны телом и только со всей добычей
+  // (>=, а не ===: дропы из коробочек тоже считаются, запас карман не тянет)
   const touchExit = player.x < EXIT.x+EXIT.w && player.x+player.w > EXIT.x &&
                     player.y < EXIT.y+EXIT.h && player.y+player.h > EXIT.y;
   if (touchExit && !won){
-    if (taken === total){
+    if (taken >= total){
       if (levelIdx < LEVELS.length-1){
         levelIdx++; sfx.win(); reset(false); // дальше: жизни сохраняются, таймер заново
         document.getElementById('msg').textContent = '🌲 Уровень ' + (levelIdx+1) + ': ' + LEVELS[levelIdx].name + '!';
@@ -570,6 +641,18 @@ function loop(t){
     if (f.dir<0){ ctx.translate(fx+32,fy); ctx.scale(-1,1); ctx.drawImage(fspr,0,0,32,32); }
     else ctx.drawImage(fspr,fx,fy,32,32);
     ctx.restore();
+  }
+  // коробочки (целая/открытая) + выпавшая добыча
+  for (const b of boxes){
+    var bimg = b.used?IM.boxopen:IM.box;
+    if (!bimg) continue;
+    ctx.drawImage(bimg, Math.round(b.x-camX), b.y);
+  }
+  for (const d of drops){
+    if (d.got) continue;
+    var dimg = d.kind==='q'?IM.quail:IM.rat;
+    if (!dimg) continue;
+    ctx.drawImage(dimg, Math.round(d.x-camX), d.y+(d.landed?bob:0));
   }
   // игрок (вид сбоку, смотрит вправо; влево — отзеркаливаем)
   let spr = IM.idle;

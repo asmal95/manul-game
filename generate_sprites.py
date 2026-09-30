@@ -40,6 +40,7 @@ PAL = {
     'C': (245,230,205,255),   # лиса: кремовый (щёки, грудь, кончик хвоста)
     'Q': (190,150,100,255),   # перепёлка: пёстро-коричневая
     'R': (155,155,165,255),   # крыса: серая
+    'N': (202,162,100,255),   # коробочка: светлое дерево
 }
 
 MANUL_IDLE = [
@@ -238,6 +239,12 @@ def _px_ellipse(px, cx, cy, rx, ry, col):
             if ((x-cx)/rx)**2 + ((y-cy)/ry)**2 <= 1.0:
                 px[y][x] = col
 
+def _px_rect(px, x, y, w, h, col):
+    for j in range(y, y+h):
+        for i in range(x, x+w):
+            if 0 <= i < len(px[0]) and 0 <= j < len(px):
+                px[j][i] = col
+
 def tile_quail(seed=6):
     """Перепёлка: круглое пёстрое тело, смотрит вправо."""
     px = tile_grass(seed+30)
@@ -275,6 +282,34 @@ def tile_rat(seed=7):
     px[5][10] = P; px[5][11] = P; px[6][10] = P
     px[8][13] = K
     px[9][14] = P
+    return px
+
+def tile_box(seed=8, opened=False):
+    """Коробочка-сюрприз 16x16 в полный рост тайла: дерево, «?»; открытая — тёмная."""
+    rnd = random.Random(seed)
+    px = []
+    for y in range(16):
+        row = []
+        for x in range(16):
+            n = rnd.randint(-6, 6)
+            row.append((34+n, 36+n, 50+n, 255))  # тёмный фон по краям
+        px.append(row)
+    K = PAL['K']; N = PAL['N']; S_ = PAL['S']; W = PAL['W']
+    if opened:
+        _px_rect(px, 0, 1, 16, 14, K)
+        _px_rect(px, 1, 2, 14, 12, S_)       # тёмное нутро
+        _px_rect(px, 1, 2, 3, 2, N)          # остатки крышки по углам
+        _px_rect(px, 12, 2, 3, 2, N)
+        _px_rect(px, 5, 2, 6, 5, (10,10,18,255))  # чёрный проём
+    else:
+        _px_rect(px, 0, 1, 16, 14, K)        # контур в 1px
+        _px_rect(px, 1, 2, 14, 12, N)        # дерево во весь рост
+        for i in range(1, 15):               # планки-крест
+            px[8][i] = S_
+        for j in range(2, 14):
+            px[j][7] = S_; px[j][8] = S_
+        for (x, y) in [(6,5),(7,5),(8,5),(9,6),(9,7),(8,8),(7,8),(7,9),(7,11)]:
+            px[y][x] = W                     # «?»
     return px
 
 # --- Манул сбоку (для платформера, смотрит вправо) ---
@@ -510,6 +545,8 @@ if __name__=="__main__":
     write_png(f"{t}/anomaly.png", tile_anomaly())
     write_png(f"{t}/quail.png", tile_quail())
     write_png(f"{t}/rat.png", tile_rat())
+    write_png(f"{t}/box.png", tile_box(8, False))
+    write_png(f"{t}/box_open.png", tile_box(8, True))
     write_png(f"{t}/bush_stone.png", tile_bush_stone())
     # увеличенные версии x4 для просмотра
     write_png(f"{s}/manul_idle_x4.png", scale(render_charmap(MANUL_IDLE),4))
