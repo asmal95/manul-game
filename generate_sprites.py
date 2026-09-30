@@ -35,6 +35,9 @@ PAL = {
     'P': (229,138,165,255),   # нос розовый
     'S': (74,63,53,255),      # полоски
     'W': (244,244,244,255),
+    'O': (232,132,48,255),    # лиса: основной рыжий
+    'U': (168,82,30,255),     # лиса: тёмный рыжий (спина, уши, лапы)
+    'C': (245,230,205,255),   # лиса: кремовый (щёки, грудь, кончик хвоста)
 }
 
 MANUL_IDLE = [
@@ -400,6 +403,61 @@ def draw_big_side(pose='idle'):
 def render_big_side(pose):
     return render_charmap(draw_big_side(pose))
 
+# --- Лиса 32x32 сбоку (враг, смотрит вправо, 2 кадра ходьбы) ---
+def draw_fox_side(pose='walk1'):
+    """pose: walk1 | walk2. Возвращает charmap 32x32."""
+    c = _blank(32)
+    # хвост-султан влево: контур + рыжий + кольца + кремовый кончик
+    _fellipse(c, 4, 19, 4.5, 6.5, 'K')
+    _fellipse(c, 4, 19, 3.3, 5.3, 'O')
+    for y in (16, 20):
+        for x in range(0, 9):
+            if c[y][x] == 'O':
+                c[y][x] = 'U'
+    for y in range(14, 25):
+        for x in range(0, 3):
+            if c[y][x] in ('O', 'U'):
+                c[y][x] = 'C'
+    # тело: контур + рыжий + светлый живот + тёмная спина
+    _frect(c, 8, 12, 15, 13, 'K')
+    _frect(c, 9, 13, 13, 11, 'O')
+    _frect(c, 9, 21, 13, 3, 'C')
+    for x in (12, 15, 18):
+        for y in (13, 14):
+            if c[y][x] == 'O':
+                c[y][x] = 'U'
+    # голова: контур + рыжий
+    _fellipse(c, 24, 15, 5.5, 6, 'K')
+    _fellipse(c, 24, 15, 4.2, 4.8, 'O')
+    # морда клином вправо + нос + кремовые щёки
+    _frect(c, 26, 16, 4, 3, 'O')
+    _put(c, 29, 17, 'K'); _put(c, 30, 17, 'K')
+    _frect(c, 26, 18, 3, 2, 'C')
+    # уши треугольные (дальнее левее, ближнее правее)
+    _put(c, 21, 7, 'K'); _put(c, 22, 7, 'K')
+    _put(c, 20, 8, 'K'); _put(c, 21, 8, 'O'); _put(c, 22, 8, 'O'); _put(c, 23, 8, 'K')
+    _put(c, 25, 6, 'K'); _put(c, 26, 6, 'K')
+    _put(c, 24, 7, 'K'); _put(c, 25, 7, 'O'); _put(c, 26, 7, 'O'); _put(c, 27, 7, 'K')
+    _put(c, 25, 8, 'U'); _put(c, 26, 8, 'U')
+    # глаз 2x2 + зрачок + блик
+    _frect(c, 24, 12, 2, 2, 'E')
+    _put(c, 25, 13, 'B')
+    _put(c, 24, 12, 'W')
+    # ноги: кадр отличается шагом (x, h), h=5 стоит / 3 поднята
+    if pose == 'walk1':
+        legs = [(10, 5), (18, 3)]
+    else:
+        legs = [(12, 3), (16, 5)]
+    for (lx, lh) in legs:
+        _frect(c, lx, 25, 4, lh, 'K')
+        _frect(c, lx+1, 25, 2, max(lh-1, 1), 'O')
+        for i in range(lx, lx+4):  # тёмные лапы
+            _put(c, i, 25+lh-1, 'U')
+    return [''.join(r) for r in c]
+
+def render_fox(pose):
+    return render_charmap(draw_fox_side(pose))
+
 if __name__=="__main__":
     s = os.path.join(BASE,"assets","sprites")
     t = os.path.join(BASE,"assets","tiles")
@@ -416,6 +474,8 @@ if __name__=="__main__":
     write_png(f"{s}/manul_big_walk1.png", render_big_side('walk1'))
     write_png(f"{s}/manul_big_walk2.png", render_big_side('walk2'))
     write_png(f"{s}/manul_big_jump.png", render_big_side('jump'))
+    write_png(f"{s}/fox_walk1.png", render_fox('walk1'))
+    write_png(f"{s}/fox_walk2.png", render_fox('walk2'))
     write_png(f"{t}/grass.png", tile_grass())
     write_png(f"{t}/tree.png", tile_tree())
     write_png(f"{t}/anomaly.png", tile_anomaly())
@@ -431,3 +491,5 @@ if __name__=="__main__":
     write_png(f"{s}/manul_big_walk1_x4.png", scale(render_big_side('walk1'),4))
     write_png(f"{s}/manul_big_walk2_x4.png", scale(render_big_side('walk2'),4))
     write_png(f"{s}/manul_big_jump_x4.png", scale(render_big_side('jump'),4))
+    write_png(f"{s}/fox_walk1_x4.png", scale(render_fox('walk1'),4))
+    write_png(f"{s}/fox_walk2_x4.png", scale(render_fox('walk2'),4))

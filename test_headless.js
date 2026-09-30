@@ -36,6 +36,12 @@ async function frames(n, t0) {
   for (let i = 0; i < n; i++) { t += 16; const cb = rafCb; rafCb = null; cb(t); await new Promise(r => setTimeout(r, 0)); }
   return t;
 }
+// кадры с произвольным dt (симуляция лага; loop режет dt на 0.033)
+async function framesDt(n, t0, dt) {
+  let t = t0;
+  for (let i = 0; i < n; i++) { t += dt; const cb = rafCb; rafCb = null; cb(t); await new Promise(r => setTimeout(r, 0)); }
+  return t;
+}
 (async () => {
   let t = 1000;
   await new Promise(r => setTimeout(r, 50)); // дать boot() загрузить "картинки"
@@ -60,11 +66,28 @@ async function frames(n, t0) {
   guard = 0;
   while (g('levelIdx') === 0 && guard++ < 100) t = await frames(10, t);
   console.log('levelIdx:', g('levelIdx'), '(ждём 1), EXIT:', JSON.stringify(g('EXIT')), 'lives:', g('lives'), '(жизни сохранены)');
-  // 5) финал 2 уровня
+  // 5) переход на 3 уровень («Лисье логово»)
+  vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
+  guard = 0;
+  while (g('levelIdx') === 1 && guard++ < 100) t = await frames(10, t);
+  console.log('levelIdx:', g('levelIdx'), '(ждём 2), лис на уровне:', g('foes.length'), '(ждём 3)');
+  // 6) кривой стамп: сдвиг вбок +8px и лагодрыг 40мс (вонзание ~15px за кадр).
+  // Со старым порогом penetration<12 такой прыжок убивал игрока, теперь — лису.
+  vm.runInContext('player.x = foes[0].x + 8; player.y = foes[0].y - 25; player.vx = 0; player.vy = 400;', sandbox);
+  t = await framesDt(3, t, 40);
+  console.log('лиса0 alive:', g('foes[0].alive'), '(ждём false), lives:', g('lives'), '(ждём 2)');
+  // 7) касание сбоку 2-й лисы — смерть, минус жизнь, респаун
+  vm.runInContext('player.x = foes[1].x + 2; player.y = foes[1].y + 2; player.vx = 0; player.vy = 0;', sandbox);
+  guard = 0;
+  while (g('lives') === 2 && guard++ < 100) t = await frames(5, t);
+  console.log('lives после касания лисы:', g('lives'), '(ждём 1)');
+  t = await frames(120, t); // ждём респаун
+  console.log('после респауна: lives =', g('lives'), 'x =', g('player.x'), 'лиса0 всё ещё мертва:', g('foes[0].alive') === false);
+  // 8) финал 3 уровня
   vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
   guard = 0;
   while (!g('won') && guard++ < 100) t = await frames(10, t);
   console.log('won:', g('won'), '(ждём true)');
-  if (g('lives') === 2 && g('levelIdx') === 1 && g('won') === true) console.log('TEST PASS: смерть, переход и финал работают');
+  if (g('lives') === 1 && g('levelIdx') === 2 && g('won') === true) console.log('TEST PASS: смерть, лисы, переходы и финал работают');
   else { console.log('TEST FAIL'); process.exit(1); }
 })();
