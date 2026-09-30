@@ -152,17 +152,20 @@ function respawn(){
 }
 function doGameOver(){
   gameover = true; finalTime = (performance.now()-t0)/1000;
+  stopMusic(); // мелодия молчит, слышно только джингл поражения
+  sfx.lose();
   document.getElementById('msg').textContent = '💀 Игра окончена. R или ⟳ — заново';
 }
 
 const keys = {};
 addEventListener('keydown', e=>{
-  ac(); // разблокировать звук по первому жесту
+  gesture(); // разблокировать звук + старт музыки по первому жесту
   keys[e.code] = true;
   if (['Space','ArrowUp','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   if (e.code==='Space'||e.code==='KeyW'||e.code==='ArrowUp') player.buffer = 0.12;
   if (e.code==='KeyR'){ sfx.click(); reset(); }
   if (e.code==='KeyM') toggleMute();
+  if (e.code==='KeyN') toggleMusic();
 });
 addEventListener('keyup', e=> keys[e.code] = false);
 
@@ -196,6 +199,7 @@ const sfx = {
   die(){ tone(250, 700, 0.16, 'square', 0.10); tone(700, 90, 0.45, 'square', 0.10, 0.16); },
   stomp(){ tone(500, 150, 0.15, 'square', 0.11); tone(900, 900, 0.08, 'sine', 0.10, 0.05); },
   win(){ const n=[523,659,784,1046]; for (let i=0;i<n.length;i++) tone(n[i], n[i], 0.14, 'triangle', 0.11, i*0.11); },
+  lose(){ const n=[659,523,440,330]; for (let i=0;i<n.length;i++) tone(n[i], n[i]*0.98, 0.25, 'triangle', 0.11, i*0.17); },
   anomaly(){ tone(200, 900, 0.35, 'sine', 0.05); },
   click(){ tone(600, 600, 0.05, 'square', 0.07); },
 };
@@ -204,11 +208,41 @@ function toggleMute(){
   document.getElementById('btn-mute').textContent = muted ? '🔇' : '🔊';
 }
 
+// --- Фоновая музыка: крошечный степ-секвенсор поверх tone() ---
+// Ля-минор, 16 шагов: лида треугольником + бас синусом. Громкость низкая,
+// чтобы не спорить с sfx. Стартует по первому жесту (см. gesture()),
+// мьют глушит вместе со звуками (проверка muted внутри tone()).
+let musicOn = false, musicMuted = false, musicTimer = null;
+function mtof(m){ return 440*Math.pow(2,(m-69)/12); }
+function gesture(){ ac(); startMusic(); }
+function startMusic(){
+  if (musicOn || gameover) return;
+  var ctx = ac(); if (!ctx) return;
+  if (typeof setInterval === 'undefined') return;
+  musicOn = true;
+  if (musicTimer !== null) return; // шедулер уже тикает, просто сняли паузу
+  var lead = [69,0,72,0,76,0,72,0, 74,0,76,0,79,0,76,74];
+  var bass = [45,41,43,40, 45,41,47,43]; // на чётных шагах: Am F G Em | Am F B G
+  var step = 0;
+  musicTimer = setInterval(function(){
+    if (musicOn && !muted && !musicMuted){
+      if (lead[step]) tone(mtof(lead[step]), mtof(lead[step]), 0.16, 'triangle', 0.04);
+      if (step%2===0 && bass[step/2]) tone(mtof(bass[step/2]), mtof(bass[step/2]), 0.30, 'sine', 0.05);
+    }
+    step = (step+1)%16;
+  }, 170);
+}
+function stopMusic(){ musicOn = false; } // тишина на экране поражения; рестарт снимет через gesture()
+function toggleMusic(){
+  musicMuted = !musicMuted;
+  document.getElementById('btn-music').textContent = musicMuted ? '🔕' : '🎵';
+}
+
 // --- Тач-кнопки для телефона (btn-left / btn-right / btn-jump) ---
 function bindTouch(id, code){
   const el = document.getElementById(id);
   if (!el) return;
-  const on = e => { e.preventDefault(); ac(); keys[code] = true; if (code==='Space') player.buffer = 0.12; };
+  const on = e => { e.preventDefault(); gesture(); keys[code] = true; if (code==='Space') player.buffer = 0.12; };
   const off = e => { if (e) e.preventDefault(); keys[code] = false; };
   el.addEventListener('touchstart', on, {passive:false});
   el.addEventListener('touchend', off);
@@ -226,14 +260,21 @@ bindTouch('btn-jump', 'Space');
 (function(){
   const el = document.getElementById('btn-restart');
   if (!el) return;
-  const go = e => { e.preventDefault(); sfx.click(); reset(); };
+  const go = e => { e.preventDefault(); gesture(); sfx.click(); reset(); };
   el.addEventListener('touchstart', go, {passive:false});
   el.addEventListener('mousedown', go);
 })();
 (function(){ // кнопка mute в HUD
   const el = document.getElementById('btn-mute');
   if (!el) return;
-  const go = e => { e.preventDefault(); ac(); toggleMute(); };
+  const go = e => { e.preventDefault(); gesture(); toggleMute(); };
+  el.addEventListener('touchstart', go, {passive:false});
+  el.addEventListener('mousedown', go);
+})();
+(function(){ // кнопка мелодии в HUD (только музыка, звуки остаются)
+  const el = document.getElementById('btn-music');
+  if (!el) return;
+  const go = e => { e.preventDefault(); gesture(); toggleMusic(); };
   el.addEventListener('touchstart', go, {passive:false});
   el.addEventListener('mousedown', go);
 })();
