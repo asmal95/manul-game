@@ -6,7 +6,7 @@ ctx.imageSmoothingEnabled = false;
 
 // Уровень: 60x16 тайлов (960x256 px). Камера следует за котом.
 // Уровни: каждый — имя + ASCII-карта + список пропастей [x0,x1] (режутся кодом, ряды 12+).
-// Легенда: # земля, P мост, A аномалия (низкая гравитация), M гриб, S спавн,
+// Легенда: # земля, P мост, A аномалия (низкая гравитация), M добыча (перепёлка/крыса), S спавн,
 // E выход (маркер, не solid), T земля-фон (тоже solid), F лиса (враг, не solid), . пусто.
 const LEVELS = [
   { name: 'Опушка', pits: [[30,32],[45,46]], map: [
@@ -19,9 +19,9 @@ const LEVELS = [
 "............................................................",
 "............................................................",
 "......M...........M.AAAA............M.....M.................",
-"....................AAAA.........######......AAAAAA..........",
-"........MM..........AAAA..........................AAAAAA.M..",
-"S.....######PPPP....AAAA......PPPPPP....M....M....AAAAAA..E..",
+"................AAAAAAAA.........######......AAAAAA..........",
+"........MM......AAAAAAAA...AAA......AAA....AA..AA.AAAAAA....",
+"S.....######PPPPAAAAAAAA...AAAPPPPPPAAA.M..AA..AA.AAAAAA..E..",
 "####################AAAA################################..###",
 "####################AAAA################################..###",
 "TTTTTTTTTTTTTTTTTTTTAAAA################################..TTT",
@@ -64,7 +64,7 @@ const LEVELS = [
 "TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTT",
   ] },
 ];
-// A = аномалия (низкая гравитация), M = гриб, S = спавн, E = выход, F = лиса,
+// A = аномалия (низкая гравитация), M = добыча, S = спавн, E = выход, F = лиса,
 // # = земля, P = платформа-мост, T = земля-фон (тоже solid)
 
 // вырезаем пропасти один раз на старте (по списку pits каждого уровня)
@@ -122,18 +122,18 @@ function reset(full){
   for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++){
     const c = LEVEL[y][x];
     if (c==='S'){ spawnX=x*TILE+2; spawnY=y*TILE-20; player.x=spawnX; player.y=spawnY; }
-    if (c==='M'){ shrooms.push({x:x*TILE, y:y*TILE, got:false}); }
+    if (c==='M'){ shrooms.push({x:x*TILE, y:y*TILE, got:false, kind:(shrooms.length%2===0)?'q':'r'}); }
     if (c==='E'){ EXIT.x=x*TILE; EXIT.y=y*TILE; }
     if (c==='F'){ foes.push({x:x*TILE-2, y:y*TILE+2, w:20, h:14, dir:-1, vy:0, sx:x*TILE-2, sy:y*TILE+2, alive:true, anim:Math.random()*2, grounded:false}); }
   }
   total = shrooms.length;
   player.vx = 0; player.vy = 0;
   document.getElementById('level').textContent = '🌲 ' + (levelIdx+1) + '/' + LEVELS.length;
-  document.getElementById('msg').textContent = 'Собери все светящиеся грибы!';
+  document.getElementById('msg').textContent = 'Собери всю добычу — перепёлок и крыс!';
   updateHud();
 }
 function updateHud(){
-  document.getElementById('shrooms').textContent = `🍄 ${taken}/${total}`;
+  document.getElementById('shrooms').textContent = `⭐ ${taken}/${total}`;
   document.getElementById('lives').textContent = '🐱×' + lives;
   if (won) document.getElementById('msg').textContent = '✅ Лес пройден за ' + fmt(finalTime) + '! R или ⟳ — ещё раз';
 }
@@ -148,7 +148,7 @@ function respawn(){
   player.x = spawnX; player.y = spawnY; player.vx = 0; player.vy = 0;
   player.coyote = 0; player.buffer = 0; wasAnom = false;
   for (const f of foes){ if (f.alive){ f.x = f.sx; f.y = f.sy; f.vy = 0; f.dir = -1; } }
-  document.getElementById('msg').textContent = taken===total ? 'Все грибы! Беги на зелёную поляну →' : 'Собери все светящиеся грибы!';
+    document.getElementById('msg').textContent = taken===total ? 'Вся добыча собрана! Беги на зелёную поляну →' : 'Собери всю добычу — перепёлок и крыс!';
 }
 function doGameOver(){
   gameover = true; finalTime = (performance.now()-t0)/1000;
@@ -329,14 +329,14 @@ function collide(isX){
 
 let IM = {};
 async function boot(){
-  const [idle,w1,w2,jump,grass,tree,anom,mush,fox1,fox2] = await Promise.all([
+  const [idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2] = await Promise.all([
     load('assets/sprites/manul_big_idle.png'), load('assets/sprites/manul_big_walk1.png'),
     load('assets/sprites/manul_big_walk2.png'), load('assets/sprites/manul_big_jump.png'),
     load('assets/tiles/grass.png'),
-    load('assets/tiles/tree.png'), load('assets/tiles/anomaly.png'), load('assets/tiles/mushroom.png'),
+    load('assets/tiles/tree.png'), load('assets/tiles/anomaly.png'), load('assets/tiles/quail.png'), load('assets/tiles/rat.png'),
     load('assets/sprites/fox_walk1.png'), load('assets/sprites/fox_walk2.png'),
   ]);
-  IM = {idle,w1,w2,jump,grass,tree,anom,mush,fox1,fox2};
+  IM = {idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2};
   reset();
   requestAnimationFrame(loop);
 }
@@ -382,12 +382,12 @@ function loop(t){
     }
   }
 
-  // грибы (не собираем во время падения/смерти)
+  // добыча (не собираем во время падения/смерти)
   for (const s of shrooms){
     if (dying > 0 || gameover) break;
     if (!s.got && Math.abs(cx-(s.x+8))<12 && Math.abs(cy-(s.y+8))<14){
       s.got=true; taken++; sfx.pickup(); updateHud();
-      if (taken===total) document.getElementById('msg').textContent='Все грибы! Беги на зелёную поляну →';
+      if (taken===total) document.getElementById('msg').textContent='Вся добыча собрана! Беги на зелёную поляну →';
     }
   }
   // таймер (стоит на паузе после победы или конца игры)
@@ -395,7 +395,7 @@ function loop(t){
   const sec = Math.floor(elapsed);
   if (sec !== lastSec){ lastSec = sec; document.getElementById('timer').textContent = '⏱ ' + fmt(elapsed); }
 
-  // выход: засчитывается только КАСАНИЕ зоны телом и только со всеми грибами
+  // выход: засчитывается только КАСАНИЕ зоны телом и только со всей добычей
   const touchExit = player.x < EXIT.x+EXIT.w && player.x+player.w > EXIT.x &&
                     player.y < EXIT.y+EXIT.h && player.y+player.h > EXIT.y;
   if (touchExit && !won){
@@ -409,11 +409,11 @@ function loop(t){
       }
     } else if (!exitHint){
       exitHint = true; sfx.denied();
-      document.getElementById('msg').textContent = '🔒 Выход закрыт — собери все грибы (осталось ' + (total-taken) + ')';
+      document.getElementById('msg').textContent = '🔒 Выход закрыт — добудь всё (осталось ' + (total-taken) + ')';
     }
   } else if (!touchExit && exitHint && !won){
     exitHint = false;
-    document.getElementById('msg').textContent = taken===total ? 'Все грибы! Беги на зелёную поляну →' : 'Собери все светящиеся грибы!';
+  document.getElementById('msg').textContent = taken===total ? 'Вся добыча собрана! Беги на зелёную поляну →' : 'Собери всю добычу — перепёлок и крыс!';
   }
 
   // падение в пропасть — смерть (а не тихий рестарт)
@@ -439,14 +439,14 @@ function loop(t){
     else if (c==='P'){ ctx.fillStyle='#6b4a2f'; ctx.fillRect(dx,dy+4,TILE,8); ctx.fillStyle='#8a6238'; ctx.fillRect(dx,dy+4,TILE,2); }
     else if (c==='A'){ ctx.drawImage(IM.anom,dx,dy); }
   }
-  // деревья-фон + грибы
+  // деревья-фон + добыча
   for (let ty=0;ty<ROWS;ty++) for (let tx=Math.max(0,x0);tx<Math.min(COLS,x1);tx++){
     if (LEVEL[ty][tx]==='T' && ty===14 && tx%6===2) ctx.drawImage(IM.tree, Math.round(tx*TILE-camX)-4, ty*TILE-32, 24, 32);
   }
   const bob = Math.sin(performance.now()/400)*2;
   for (const s of shrooms){
     if (s.got) continue;
-    ctx.drawImage(IM.mush, Math.round(s.x-camX), s.y+bob);
+    ctx.drawImage(s.kind==='q'?IM.quail:IM.rat, Math.round(s.x-camX), s.y+bob);
   }
   // выход-флаг (та же зона EXIT, что проверяется в логике)
   const open = taken===total;
@@ -492,7 +492,7 @@ function loop(t){
       ctx.fillStyle = '#ff6b6b'; ctx.font = 'bold 22px monospace';
       ctx.fillText('ИГРА ОКОНЧЕНА', W/2, H/2-16);
       ctx.fillStyle = '#eee'; ctx.font = '11px monospace';
-      ctx.fillText('Время: ' + fmt(finalTime) + '   Грибы: ' + taken + '/' + total, W/2, H/2+8);
+      ctx.fillText('Время: ' + fmt(finalTime) + '   Добыча: ' + taken + '/' + total, W/2, H/2+8);
       ctx.fillStyle = '#ffd83d';
       ctx.fillText('R или ⟳ — заново', W/2, H/2+28);
     } else {

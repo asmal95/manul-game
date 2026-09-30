@@ -51,7 +51,7 @@ async function framesDt(n, t0, dt) {
   // 1) стоим на обычной земле 2 сек — должны жить
   t = await frames(120, t);
   console.log('lives после стояния на земле:', g('lives'), '(ждём 3)');
-  // 2) телепорт над пропастью БЕЗ моста (колонки 45-46, там только гриб)
+  // 2) телепорт над пропастью БЕЗ моста (колонки 45-46, там только добыча M)
   vm.runInContext('player.x = 45*16; player.y = 150; player.vx = 0; player.vy = 0;', sandbox);
   let guard = 0;
   while (g('lives') === 3 && guard++ < 600) t = await frames(10, t);
@@ -60,7 +60,7 @@ async function framesDt(n, t0, dt) {
   // 3) ждём респаун
   t = await frames(120, t);
   console.log('после респауна: lives =', g('lives'), 'x =', g('player.x'), 'y =', g('player.y'));
-  // 4) переход на 2 уровень: все грибы + касание выхода
+  // 4) переход на 2 уровень: вся добыча + касание выхода
   // (встаём НА землю у выхода: y=EXIT.y-8, иначе телепорт внутрь стены)
   vm.runInContext('taken = total; player.x = EXIT.x + 4; player.y = EXIT.y - 8; player.vx = 0; player.vy = 0;', sandbox);
   guard = 0;

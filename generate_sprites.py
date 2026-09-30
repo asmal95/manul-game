@@ -38,6 +38,8 @@ PAL = {
     'O': (232,132,48,255),    # лиса: основной рыжий
     'U': (168,82,30,255),     # лиса: тёмный рыжий (спина, уши, лапы)
     'C': (245,230,205,255),   # лиса: кремовый (щёки, грудь, кончик хвоста)
+    'Q': (190,150,100,255),   # перепёлка: пёстро-коричневая
+    'R': (155,155,165,255),   # крыса: серая
 }
 
 MANUL_IDLE = [
@@ -212,25 +214,6 @@ def tile_anomaly(seed=3):
         px[y][x]=(140,255,240,255)
     return px
 
-def tile_mushroom(seed=4):
-    px=tile_grass(seed+10)
-    # ножка
-    for y in range(9,14):
-        for x in range(7,9):
-            px[y][x]=(220,210,190,255)
-    # шляпка светящаяся циан
-    cap=[(5,9),(4,10),(3,11),(2,12),(1,13)]
-    for y in range(5,10):
-        for x in range(4,12):
-            dx=abs(x-7.5); dy=y-5
-            if dx+dy*1.2<4.5:
-                px[y][x]=(40,220,200,255) if (x+y)%2==0 else (30,180,170,255)
-    # белые точки
-    px[6][6]=(240,255,250,255); px[7][9]=(240,255,250,255); px[6][9]=(240,255,250,255)
-    # свечение вокруг
-    px[10][5]=(80,255,220,180); px[10][10]=(80,255,220,180)
-    return px
-
 def tile_bush_stone(seed=5):
     px=tile_grass(seed+20)
     rnd=random.Random(seed)
@@ -246,6 +229,52 @@ def tile_bush_stone(seed=5):
             if rnd.random()<0.85:
                 px[y][x]=(40,120,70,255)
     px[8][3]=(70,170,100,255)
+    return px
+
+# --- Добыча 16x16 (перепёлка и крыса, на траве) ---
+def _px_ellipse(px, cx, cy, rx, ry, col):
+    for y in range(len(px)):
+        for x in range(len(px[0])):
+            if ((x-cx)/rx)**2 + ((y-cy)/ry)**2 <= 1.0:
+                px[y][x] = col
+
+def tile_quail(seed=6):
+    """Перепёлка: круглое пёстрое тело, смотрит вправо."""
+    px = tile_grass(seed+30)
+    Q = PAL['Q']; S_ = PAL['S']; L = PAL['L']; K = PAL['K']; W = PAL['W']
+    # хвост влево
+    for (x, y) in [(1,9),(2,9),(3,9),(1,10),(2,10)]:
+        px[y][x] = S_
+    # тело + светлый низ
+    _px_ellipse(px, 8, 10, 5, 4, Q)
+    for x in range(6, 11):
+        px[12][x] = L; px[13][x] = L
+    # крыло + крап
+    _px_ellipse(px, 7, 10, 2.5, 2, S_)
+    px[9][6] = Q
+    for (x, y) in [(5,9),(9,11),(10,8)]:
+        px[y][x] = S_
+    # голова + глаз с бликом + клюв
+    _px_ellipse(px, 11, 6, 2.3, 2.5, Q)
+    px[5][12] = K; px[5][11] = W
+    px[6][13] = K; px[6][14] = K
+    return px
+
+def tile_rat(seed=7):
+    """Крыса: серая, с розовыми ухом, носом и длинным хвостом."""
+    px = tile_grass(seed+40)
+    Rr = PAL['R']; P = PAL['P']; K = PAL['K']
+    # хвост кривой по низу
+    for x in range(1, 8):
+        px[13][x] = P
+    px[12][1] = P; px[11][1] = P
+    # тело + голова справа
+    _px_ellipse(px, 8, 10, 6, 3.5, Rr)
+    _px_ellipse(px, 12, 9, 2.5, 2.5, Rr)
+    # ухо + глаз + нос
+    px[5][10] = P; px[5][11] = P; px[6][10] = P
+    px[8][13] = K
+    px[9][14] = P
     return px
 
 # --- Манул сбоку (для платформера, смотрит вправо) ---
@@ -479,7 +508,8 @@ if __name__=="__main__":
     write_png(f"{t}/grass.png", tile_grass())
     write_png(f"{t}/tree.png", tile_tree())
     write_png(f"{t}/anomaly.png", tile_anomaly())
-    write_png(f"{t}/mushroom.png", tile_mushroom())
+    write_png(f"{t}/quail.png", tile_quail())
+    write_png(f"{t}/rat.png", tile_rat())
     write_png(f"{t}/bush_stone.png", tile_bush_stone())
     # увеличенные версии x4 для просмотра
     write_png(f"{s}/manul_idle_x4.png", scale(render_charmap(MANUL_IDLE),4))
