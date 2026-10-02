@@ -306,15 +306,28 @@ func (s *Server) adminDelete(w http.ResponseWriter, r *http.Request) {
 
 // --- static: игра и админка ---
 
+// serveFile отдаёт файл с кеш-политикой:
+//   - html — no-store (иначе браузер держит старый index.html,
+//     а за ним тянутся старые css/js без версий — было на проде с тапом по 🌲);
+//   - всё с ?v= — immutable на год (версия bump'ается в html при изменениях).
+func (s *Server) serveFile(w http.ResponseWriter, r *http.Request, full string) {
+	if strings.HasSuffix(full, ".html") {
+		w.Header().Set("Cache-Control", "no-store")
+	} else if r.URL.Query().Get("v") != "" {
+		w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+	}
+	http.ServeFile(w, r, full)
+}
+
 // serveGame отдаёт только белый список файлов игры (не весь webroot:
 // рядом лежат исходники server/ с Go-кодом — их наружу нельзя).
 func (s *Server) serveGame(w http.ResponseWriter, r *http.Request) {
 	p := path.Clean(r.URL.Path)
 	switch {
 	case p == "/" || p == "/index.html":
-		http.ServeFile(w, r, s.web+"/index.html")
+		s.serveFile(w, r, s.web+"/index.html")
 	case p == "/style.css" || p == "/main.js" || p == "/preview.html":
-		http.ServeFile(w, r, s.web+p)
+		s.serveFile(w, r, s.web+p)
 	case p == "/assets" || strings.HasPrefix(p, "/assets/"):
 		// Без листинга каталогов: точный файл или 404.
 		full := s.web + p
@@ -322,7 +335,7 @@ func (s *Server) serveGame(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		http.ServeFile(w, r, full)
+		s.serveFile(w, r, full)
 	default:
 		http.NotFound(w, r)
 	}
@@ -332,7 +345,7 @@ func (s *Server) serveGame(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveAdmin(w http.ResponseWriter, r *http.Request) {
 	p := path.Clean(strings.TrimPrefix(r.URL.Path, "/admin"))
 	if p == "/" || p == "." || p == "/index.html" {
-		http.ServeFile(w, r, s.web+"/admin/index.html")
+		s.serveFile(w, r, s.web+"/admin/index.html")
 		return
 	}
 	full := s.web + "/admin" + p
@@ -340,7 +353,7 @@ func (s *Server) serveAdmin(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	http.ServeFile(w, r, full)
+	s.serveFile(w, r, full)
 }
 
 // --- helpers ---

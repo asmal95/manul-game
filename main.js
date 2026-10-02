@@ -447,11 +447,12 @@ bindTouch('btn-jump', 'Space');
   el.addEventListener('mousedown', go);
 })();
 // тап по счётчику уровней = следующий уровень (для телефона; аналог ]).
-// Только 'click' (без пары touchstart/mousedown — иначе на мобиле сработает дважды).
+// pointerup — один выстрел и на мыши, и на таче (пара touchstart/mousedown
+// на мобиле задвоила бы переход, а click там капризничает).
 (function(){
   const el = document.getElementById('level');
   if (!el) return;
-  el.addEventListener('click', e => {
+  el.addEventListener('pointerup', e => {
     e.preventDefault(); gesture();
     if (LEVELS.length<2) return;
     levelIdx = (levelIdx+1)%LEVELS.length;
