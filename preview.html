@@ -8,7 +8,7 @@ body{background:#1a1c2c;color:#eee;font-family:monospace;padding:20px}
 .card{background:#2a2d44;padding:12px;border-radius:8px;text-align:center}
 .scene{image-rendering:pixelated;width:480px;max-width:90vw;border:4px solid #000}
 </style></head><body>
-<h1>🐾 Манул-лес — v0.1 пиксель-арт</h1>
+<h1>🐾 Манул: Зажировка — v0.17 пиксель-арт</h1>
 <h2>Кот-манул 16x16</h2>
 <div class="row">
 <div class="card"><img class="pixel" src="assets/sprites/manul_idle.png"><br>idle</div>
@@ -38,7 +38,6 @@ body{background:#1a1c2c;color:#eee;font-family:monospace;padding:20px}
 <h2>Тайлы 16x16</h2>
 <div class="row">
 <div class="card"><img class="tile" src="assets/tiles/grass.png"><br>grass</div>
-<div class="card"><img class="tile" src="assets/tiles/tree.png"><br>tree</div>
 <div class="card"><img class="tile" src="assets/tiles/anomaly.png"><br>anomaly</div>
 <div class="card"><img class="tile" src="assets/tiles/quail.png"><br>quail (добыча)</div>
 <div class="card"><img class="tile" src="assets/tiles/rat.png"><br>rat (добыча)</div>
@@ -46,14 +45,21 @@ body{background:#1a1c2c;color:#eee;font-family:monospace;padding:20px}
 <div class="card"><img class="tile" src="assets/tiles/box_open.png"><br>box_open</div>
 <div class="card"><img class="tile" src="assets/tiles/bush_stone.png"><br>bush_stone</div>
 </div>
+<h2>Фон-декор 16x16 (поверх земли, прозрачный фон)</h2>
+<div class="row">
+<div class="card"><img class="tile" src="assets/tiles/decor_stone.png"><br>камень</div>
+<div class="card"><img class="tile" src="assets/tiles/decor_bones.png"><br>косточки</div>
+<div class="card"><img class="tile" src="assets/tiles/decor_skull.png"><br>череп</div>
+<div class="card"><img class="tile" src="assets/tiles/decor_owl.png"><br>совёнок</div>
+</div>
 <h2>Тестовая сцена</h2>
 <canvas id="scene" width="120" height="80" class="scene"></canvas>
 <script>
-const files=["assets/tiles/grass.png","assets/tiles/tree.png","assets/tiles/anomaly.png","assets/tiles/quail.png","assets/sprites/manul_idle.png"];
-Promise.all(files.map(s=>new Promise(r=>{const i=new Image();i.src=s;i.onload=()=>r(i)}))).then(([grass,tree,anom,prey,cat])=>{
+const files=["assets/tiles/grass.png","assets/tiles/decor_owl.png","assets/tiles/anomaly.png","assets/tiles/quail.png","assets/sprites/manul_idle.png"];
+Promise.all(files.map(s=>new Promise(r=>{const i=new Image();i.src=s;i.onload=()=>r(i)}))).then(([grass,owl,anom,prey,cat])=>{
 const c=document.getElementById('scene'),x=c.getContext('2d');x.imageSmoothingEnabled=false;
 for(let ty=0;ty<5;ty++)for(let tx=0;tx<8;tx++)x.drawImage(grass,tx*16,ty*16);
-x.drawImage(tree,16,8);x.drawImage(tree,80,0);x.drawImage(anom,48,32);
+x.drawImage(owl,16,8);x.drawImage(owl,80,0);x.drawImage(anom,48,32);
 x.drawImage(prey,16,48);x.drawImage(cat,56,48);
 });
 </script>

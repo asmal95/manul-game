@@ -232,6 +232,102 @@ def tile_bush_stone(seed=5):
     px[8][3]=(70,170,100,255)
     return px
 
+# --- Фоновый декор 16x16: прозрачный фон, кладётся поверх земли ---
+# Мило, не жутко: мягкие цвета, цветы рядом с «страшным».
+def _clear16():
+    return [[(0,0,0,0)]*16 for _ in range(16)]
+
+def _shadow(px, x0=3, x1=12, y=13):
+    for x in range(x0, x1+1):
+        px[y][x] = (24,44,30,255)
+
+def tile_decor_stone(seed=21):
+    """Серый валун во мху."""
+    px = _clear16()
+    ST = (143,143,155,255); DK = (100,100,118,255); LT = (190,190,205,255)
+    MS = (82,140,95,255)
+    _shadow(px)
+    _px_ellipse(px, 7.5, 10, 4, 2.5, ST)
+    for x in range(4, 12):          # тёмный низ
+        px[12][x] = DK
+    px[12][4] = (0,0,0,0); px[12][11] = (0,0,0,0)
+    for x in range(5, 8):           # светлый верх слева
+        px[8][x] = LT
+    px[9][5] = LT
+    for (x, y) in [(9,8),(10,9),(6,10)]:  # мох
+        px[y][x] = MS
+    return px
+
+def tile_decor_bones(seed=22):
+    """Две милые косточки крест-накрест + цветочек."""
+    px = _clear16()
+    CR = PAL['L']; SH = PAL['D']; K = PAL['K']
+    _shadow(px, 2, 13, 13)
+    # кость 1 — горизонтальная
+    _px_rect(px, 4, 9, 8, 2, CR)
+    for (x, y) in [(3,8),(4,8),(3,11),(4,11),(11,8),(12,8),(11,11),(12,11),
+                   (3,9),(3,10),(12,9),(12,10)]:
+        px[y][x] = CR
+    for x in range(4, 12):          # тень снизу
+        px[10][x] = SH
+    # кость 2 — диагональная
+    for i in range(7):
+        px[4+i][4+i] = CR; px[4+i][5+i] = CR
+        px[5+i][4+i] = SH
+    for (x, y) in [(3,3),(4,3),(3,4),(10,10),(11,10),(10,11),(11,11)]:
+        px[y][x] = CR
+    px[3][3] = K; px[11][11] = K
+    # цветочек рядом
+    px[12][13] = (46,90,60,255); px[11][13] = (46,90,60,255)
+    px[10][13] = PAL['P']; px[10][12] = PAL['P']; px[9][13] = PAL['P']
+    px[10][13] = PAL['E']
+    return px
+
+def tile_decor_skull(seed=23):
+    """Круглый череп с румянцем и ростком клевера — не жутко, а мило."""
+    px = _clear16()
+    CR = PAL['L']; SH = PAL['D']
+    EYE = (58,52,66,255); BLUSH = PAL['P']
+    _shadow(px, 4, 11, 13)
+    _px_ellipse(px, 7.5, 9, 3.5, 3.5, CR)   # купол
+    _px_rect(px, 6, 11, 4, 2, CR)           # челюсть
+    for x in range(6, 10):                  # тень низа
+        px[12][x] = SH
+    for (x, y) in [(6,8),(7,8),(9,8),(10,8)]:  # глазницы
+        px[y][x] = EYE
+    px[6][8] = PAL['W']                     # блик в глазу
+    px[8][10] = EYE                         # нос по центру
+    px[7][11] = SH; px[8][11] = SH          # зубы-прорези
+    px[5][10] = BLUSH; px[10][10] = BLUSH   # румянец
+    # росток клевера из макушки
+    px[7][5] = (46,90,60,255); px[7][4] = (46,90,60,255)
+    px[6][5] = (62,112,78,255); px[8][5] = (62,112,78,255)
+    px[7][3] = PAL['P']; px[6][3] = (62,112,78,255); px[8][3] = (62,112,78,255)
+    return px
+
+def tile_decor_owl(seed=24):
+    """Совёнок: круглый, глазастый, сидит в траве."""
+    px = _clear16()
+    BO = (157,102,52,255); DK = (110,70,35,255); CR = PAL['C']
+    K = PAL['K']; W = PAL['W']; O = PAL['O']
+    _shadow(px, 4, 11, 13)
+    _px_ellipse(px, 8, 9, 4, 4.5, BO)       # тело
+    _px_ellipse(px, 8, 10.5, 2.2, 2.8, CR) # пузо
+    for y in range(8, 12):                 # крылья
+        px[y][4] = DK; px[y][11] = DK
+    for y in range(11, 13):                 # тёмный низ
+        for x in range(5, 11):
+            px[y][x] = DK
+    _px_ellipse(px, 8, 10.5, 2.2, 2.2, CR)  # пузо поверх тени
+    for (x, y) in [(4,5),(5,4),(11,5),(10,4)]:  # ушки
+        px[y][x] = DK
+    for (x, y) in [(6,7),(7,7),(6,8),(7,8),
+                   (9,7),(10,7),(9,8),(10,8)]:  # глазищи
+        px[y][x] = W
+    px[7][8] = K; px[9][8] = K             # зрачки
+    px[8][9] = O; px[7][9] = O             # клюв
+    return px
+
 # --- Добыча 16x16 (перепёлка и крыса, на траве) ---
 def _px_ellipse(px, cx, cy, rx, ry, col):
     for y in range(len(px)):
@@ -541,13 +637,16 @@ if __name__=="__main__":
     write_png(f"{s}/fox_walk1.png", render_fox('walk1'))
     write_png(f"{s}/fox_walk2.png", render_fox('walk2'))
     write_png(f"{t}/grass.png", tile_grass())
-    write_png(f"{t}/tree.png", tile_tree())
     write_png(f"{t}/anomaly.png", tile_anomaly())
     write_png(f"{t}/quail.png", tile_quail())
     write_png(f"{t}/rat.png", tile_rat())
     write_png(f"{t}/box.png", tile_box(8, False))
     write_png(f"{t}/box_open.png", tile_box(8, True))
     write_png(f"{t}/bush_stone.png", tile_bush_stone())
+    write_png(f"{t}/decor_stone.png", tile_decor_stone())
+    write_png(f"{t}/decor_bones.png", tile_decor_bones())
+    write_png(f"{t}/decor_skull.png", tile_decor_skull())
+    write_png(f"{t}/decor_owl.png", tile_decor_owl())
     # увеличенные версии x4 для просмотра
     write_png(f"{s}/manul_idle_x4.png", scale(render_charmap(MANUL_IDLE),4))
     write_png(f"{s}/manul_side_idle_x4.png", scale(render_side('idle'),4))

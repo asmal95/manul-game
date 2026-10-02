@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Манул: Зажировка — конструктор уровней</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>🛠 Конструктор уровней <small><a href="/">← к игре</a></small></h1>
+
+  <form id="login">
+    <h2>Вход админа</h2>
+    <input id="login-name" type="text" autocomplete="username" placeholder="Логин">
+    <input id="login-pass" type="password" autocomplete="current-password" placeholder="Пароль">
+    <button type="submit">Войти</button>
+    <span id="login-err" class="err"></span>
+  </form>
+
+  <div id="editor" hidden>
+    <div class="bar">
+      <select id="level-list" title="Уровень"></select>
+      <button id="btn-new">+ Новый</button>
+      <button id="btn-dup">⧉ Дублировать</button>
+      <button id="btn-del" class="danger">Удалить</button>
+      <span id="who"></span>
+      <button id="btn-logout">Выйти</button>
+    </div>
+    <div class="bar">
+      <label>Название <input id="f-name" size="20"></label>
+      <label>Слаг <input id="f-slug" size="16" placeholder="авто"></label>
+      <label>Порядок <input id="f-ord" type="number" min="0" value="0" style="width:4em"></label>
+      <label>Статус
+        <select id="f-status">
+          <option value="draft">draft</option>
+          <option value="published">published</option>
+        </select>
+      </label>
+    </div>
+    <div class="bar" id="palette"></div>
+    <canvas id="grid" width="600" height="160"></canvas>
+    <p class="hint">Клик/тяни — рисовать выбранным тайлом, всё напрямую: и земля, и пропасти (пустота в рядах 12+ = смертельное падение). Легенда: <b>#</b> земля, <b>P</b> мост, <b>A</b> аномалия, <b>M</b> добыча, <b>B</b> коробочка, <b>S</b> спавн (ровно 1), <b>E</b> выход, <b>T</b> земля-фон, <b>F</b> лиса, <b>.</b> пусто. Размер строго 60×16. Что нарисовано — то и в игре.</p>
+    <div class="bar">
+      <button id="btn-save">💾 Сохранить</button>
+      <button id="btn-test">▶ Тест-драфт</button>
+      <span id="save-msg"></span>
+    </div>
+    <ul id="errs" class="err"></ul>
+  </div>
+</div>
+<script src="admin.js"></script>
+</body>
+</html>

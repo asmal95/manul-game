@@ -1,0 +1,16 @@
+*{box-sizing:border-box}
+body{background:#12141f;color:#e8e0cf;font-family:monospace;margin:0;padding:16px;display:flex;justify-content:center}
+.wrap{width:960px;max-width:96vw}
+h1{font-size:18px;margin:0 0 12px} h1 small{font-weight:normal} a{color:#7ee081}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:10px;font-size:13px;flex-wrap:wrap}
+input,select{background:#2a2d44;color:#eee;border:1px solid #8a8fa8;border-radius:6px;padding:4px 8px;font-family:monospace;font-size:13px}
+button{font-family:monospace;font-size:13px;padding:4px 12px;border-radius:6px;border:1px solid #8a8fa8;background:#2a2d44;color:#eee;cursor:pointer}
+button:hover{background:#7ee081;color:#12141f}
+button.on{outline:2px solid #ffd83d;background:#3a3f5c}
+button.danger:hover{background:#ff6b6b;color:#12141f}
+.err{color:#ff6b6b;font-size:13px} #errs{margin:6px 0;padding-left:20px}
+.hint{color:#8a8fa8;font-size:12px}
+#save-msg{color:#7ee081}
+#grid{width:900px;max-width:96vw;image-rendering:pixelated;border:4px solid #000;border-radius:8px;background:#0b0e1a;cursor:crosshair;touch-action:none}
+#palette button{min-width:3em}
+#login{display:flex;gap:10px;align-items:center;flex-wrap:wrap}

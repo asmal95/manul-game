@@ -5,12 +5,15 @@ const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 
 // Уровень: 60x16 тайлов (960x256 px). Камера следует за котом.
-// Уровни: каждый — имя + ASCII-карта + список пропастей [x0,x1] (режутся кодом, ряды 12+).
+// Уровни: каждый — имя + ASCII-карта; геометрия рисуется НАПРЯМУЮ,
+// включая пропасти (пустота в рядах 12+ = смертельное падение).
+// Поле pits всегда [] (наследие: раньше дыры резались кодом по интервалам;
+// applyPits ниже оставлен как no-op для совместимости).
 // Легенда: # земля, P мост, A аномалия (низкая гравитация), M добыча (перепёлка/крыса),
 // B коробочка-сюрприз (solid; прыжок стоя на ней роняет добычу вниз), S спавн,
 // E выход (маркер, не solid), T земля-фон (тоже solid), F лиса (враг, не solid), . пусто.
 const LEVELS = [
-  { name: 'Опушка', pits: [[30,32],[45,46]], map: [
+  { name: 'Опушка', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -23,12 +26,12 @@ const LEVELS = [
 "................AAAAAAAA.........######......AAAAAA..........",
 "........MM......AAAAAAAA...AAA......AAA....AA..AA.AAAAAA....",
 "S.....######PPPPAAAAAAAA...AAAPPPPPPAAA.M..AA..AA.AAAAAA..E..",
-"####################AAAA################################..###",
-"####################AAAA################################..###",
-"TTTTTTTTTTTTTTTTTTTTAAAA################################..TTT",
-"TTTTTTTTTTTTTTTTTTTTAAAA################################..TTT",
+"####################AAAA######...############..#########..###",
+"####################AAAA######...############..#########..###",
+"TTTTTTTTTTTTTTTTTTTTAAAA######...############..#########..TTT",
+"TTTTTTTTTTTTTTTTTTTTAAAA######...############..#########..TTT",
   ] },
-  { name: 'Чаща', pits: [[18,20],[33,35],[47,49]], map: [
+  { name: 'Чаща', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -41,12 +44,12 @@ const LEVELS = [
 ".........######.......AAAA..............AAAA.....######.....",
 "........M.............AAAA....M.........AAAA....M...........",
 ".S...............PPPPPAAAA......PPPPP...AAAA..PPPPP.....E...",
-"######################AAAA##############AAAA################",
-"TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTAAAAATTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTAAAAATTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTAAAAATTTTTTTTTTTTTTT",
+"##################...#AAAA#######...####AAAA###...##########",
+"TTTTTTTTTTTTTTTTTT...TAAAATTTTTTT...TTTTAAAAATT...TTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTT...TAAAATTTTTTT...TTTTAAAAATT...TTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTT...TAAAATTTTTTT...TTTTAAAAATT...TTTTTTTTTT",
   ] },
-  { name: 'Лисье логово', pits: [[27,29],[43,45]], map: [
+  { name: 'Лисье логово', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -59,12 +62,12 @@ const LEVELS = [
 "........######........AAAA...........AAAA.........######....",
 "................M................M..............M....M......",
 ".S....F...............AAAAPPPPP..F...AAAA.PPPPP...F......E..",
-"######################AAAA###########AAAA###################",
-"TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTT",
+"######################AAAA#...#######AAAA##...##############",
+"TTTTTTTTTTTTTTTTTTTTTTAAAAT...TTTTTTTAAAATT...TTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTAAAAT...TTTTTTTAAAATT...TTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTAAAAT...TTTTTTTAAAATT...TTTTTTTTTTTTTT",
   ] },
-  { name: 'Мшистый овраг', pits: [[20, 22], [40, 42]], map: [
+  { name: 'Мшистый овраг', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -77,12 +80,12 @@ const LEVELS = [
 "......######................AAAA..............######........",
 "................M...................M................M......",
 ".S....F............PPPPP....AAAA.F.....PPPPP......F......E..",
-"############################################################",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+"####################...#################...#################",
+"TTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT",
   ] },
-  { name: 'Туманная чаща', pits: [[14, 16], [33, 35]], map: [
+  { name: 'Туманная чаща', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -95,12 +98,12 @@ const LEVELS = [
 "........#####.........AAAA..................AAAA............",
 "................M............M.......................M......",
 ".S....F......PPPPP....AAAA.F....PPPPP....F..AAAA....F....E..",
-"############################################AAAA############",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTT",
+"##############...################...########AAAA############",
+"TTTTTTTTTTTTTT...TTTTTTTTTTTTTTTT...TTTTTTTTAAAATTTTTTTTTTTT",
+"TTTTTTTTTTTTTT...TTTTTTTTTTTTTTTT...TTTTTTTTAAAATTTTTTTTTTTT",
+"TTTTTTTTTTTTTT...TTTTTTTTTTTTTTTT...TTTTTTTTAAAATTTTTTTTTTTT",
   ] },
-  { name: 'Сердце леса', pits: [[24, 26], [41, 43]], map: [
+  { name: 'Сердце леса', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -113,12 +116,12 @@ const LEVELS = [
 "......######..................AAAA...........AAAA...........",
 "................M.................M...........A......M......",
 ".S......F...........F..PPPPP..AAAA..F...PPPPPPAAA...F....E..",
-"#############################################AAAA###########",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTT",
+"########################...##############...#AAAA###########",
+"TTTTTTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTT...TAAAATTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTT...TAAAATTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTT...TAAAATTTTTTTTTTT",
   ] },
-  { name: 'Схрон', pits: [[18,20],[38,40]], map: [
+  { name: 'Схрон', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -131,12 +134,12 @@ const LEVELS = [
 "......######............B...AAAA..B........B.######.........",
 "................M...................M................M......",
 ".S....F.....F....PPPPPP.....AAAAP....PPPPP........F......E..",
-"############################AAAA############################",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTTTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+"##################...#######AAAA######...###################",
+"TTTTTTTTTTTTTTTTTT...TTTTTTTAAAATTTTTT...TTTTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTT...TTTTTTTAAAATTTTTT...TTTTTTTTTTTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTT...TTTTTTTAAAATTTTTT...TTTTTTTTTTTTTTTTTTT",
   ] },
-  { name: 'Бурелом', pits: [[22,24],[42,44]], map: [
+  { name: 'Бурелом', pits: [], map: [
 "............................................................",
 "............................................................",
 "............................................................",
@@ -149,22 +152,27 @@ const LEVELS = [
 "........#####.AAAA........B.......B.....B.....AAAA..........",
 "............................M..................A.....M......",
 ".S....F.....F.AAAA...PPPPP....F..........PPPPPPAAA..F....E..",
-"##############################################AAAA##########",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTT",
-"TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTAAAATTTTTTTTTT",
+"######################...#################...#AAAA##########",
+"TTTTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT...TAAAATTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT...TAAAATTTTTTTTTT",
+"TTTTTTTTTTTTTTTTTTTTTT...TTTTTTTTTTTTTTTTT...TAAAATTTTTTTTTT",
   ] },
 ];
 // A = аномалия (низкая гравитация), M = добыча, B = коробочка, S = спавн, E = выход, F = лиса,
 // # = земля, P = платформа-мост, T = земля-фон (тоже solid)
 
-// вырезаем пропасти один раз на старте (по списку pits каждого уровня)
-for (const lv of LEVELS){
-  for (const pit of lv.pits){
-    for (let x=pit[0]; x<=pit[1]; x++) for (let y=12; y<lv.map.length; y++)
-      lv.map[y] = lv.map[y].substring(0,x) + '.' + lv.map[y].substring(x+1);
+// applyPits — наследие эпохи интервальных пропастей: сейчас pits всегда [],
+// геометрия нарисована напрямую. Оставлен как no-op для совместимости
+// (сервер принимает pits на входе как хелпер и запекает сам).
+function applyPits(list){
+  for (const lv of list){
+    for (const pit of lv.pits){
+      for (let x=pit[0]; x<=pit[1]; x++) for (let y=12; y<lv.map.length; y++)
+        lv.map[y] = lv.map[y].substring(0,x) + '.' + lv.map[y].substring(x+1);
+    }
   }
 }
+applyPits(LEVELS);
 let LEVEL = LEVELS[0].map, ROWS = LEVEL.length, COLS = LEVEL[0].length, levelIdx = 0;
 let EXIT = {x: 0, y: 0, w: 24, h: 32};
 
@@ -486,17 +494,43 @@ function collide(isX){
   }
 }
 
+// Уровни с сервера: обычная игра грузит опубликованные (/api/levels),
+// тест-драфт из конструктора — один уровень (?draft=<id>, нужна сессия админа).
+// Без сервера (файл напрямую, headless-тесты) — молча остаёмся на встроенных.
+async function loadLevels(){
+  try{
+    if (typeof fetch !== 'function' || typeof location === 'undefined') return;
+    var m = location.search.match(/[?&]draft=(\d+)/);
+    var url = m ? '/api/admin/levels/' + m[1] : '/api/levels';
+    var opt = m ? {credentials: 'same-origin'} : {};
+    var r = await fetch(url, opt);
+    if (!r.ok) return;
+    var j = await r.json();
+    var arr = m ? [j] : j.levels;
+    if (!arr || !arr.length) return;
+    var conv = arr.map(function(l){ return {name: l.name, pits: l.pits, map: l.map.slice()}; });
+    applyPits(conv);
+    LEVELS.length = 0;
+    for (var i=0;i<conv.length;i++) LEVELS.push(conv[i]);
+  }catch(e){ /* fallback: встроенные уровни */ }
+}
+
 let IM = {};
 async function boot(){
-  const [idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2,box,boxopen] = await Promise.all([
+  const [idle,w1,w2,jump,grass,anom,quail,rat,fox1,fox2,box,boxopen,
+    dStone,dBones,dSkull,dOwl] = await Promise.all([
     load('assets/sprites/manul_big_idle.png'), load('assets/sprites/manul_big_walk1.png'),
     load('assets/sprites/manul_big_walk2.png'), load('assets/sprites/manul_big_jump.png'),
     load('assets/tiles/grass.png'),
-    load('assets/tiles/tree.png'), load('assets/tiles/anomaly.png'), load('assets/tiles/quail.png'), load('assets/tiles/rat.png'),
+    load('assets/tiles/anomaly.png'), load('assets/tiles/quail.png'), load('assets/tiles/rat.png'),
     load('assets/sprites/fox_walk1.png'), load('assets/sprites/fox_walk2.png'),
     load('assets/tiles/box.png'), load('assets/tiles/box_open.png'),
+    load('assets/tiles/decor_stone.png'), load('assets/tiles/decor_bones.png'),
+    load('assets/tiles/decor_skull.png'), load('assets/tiles/decor_owl.png'),
   ]);
-  IM = {idle,w1,w2,jump,grass,tree,anom,quail,rat,fox1,fox2,box,boxopen};
+  IM = {idle,w1,w2,jump,grass,anom,quail,rat,fox1,fox2,box,boxopen,
+    dStone,dBones,dSkull,dOwl};
+  await loadLevels();
   reset();
   requestAnimationFrame(loop);
 }
@@ -615,9 +649,19 @@ function loop(t){
     else if (c==='P'){ ctx.fillStyle='#6b4a2f'; ctx.fillRect(dx,dy+4,TILE,8); ctx.fillStyle='#8a6238'; ctx.fillRect(dx,dy+4,TILE,2); }
     else if (c==='A'){ ctx.drawImage(IM.anom,dx,dy); }
   }
-  // деревья-фон + добыча
+  // фон-декор на земле: камень, косточки, череп, совёнок.
+  // Детерминированный разброс (без рандома — картинка стабильна между кадрами).
+  // Редко (ряд 14, каждая четвёртая колонка), крупно (32x32 на ряды 14-15).
+  // Встаёт на любую землю (# и T) — равномерно по всему уровню, не кучкой.
+  // Это под ногами, геймплею не мешает.
+  var DECOR = [IM.dStone, IM.dBones, IM.dSkull, IM.dOwl];
   for (let ty=0;ty<ROWS;ty++) for (let tx=Math.max(0,x0);tx<Math.min(COLS,x1);tx++){
-    if (LEVEL[ty][tx]==='T' && ty===14 && tx%6===2) ctx.drawImage(IM.tree, Math.round(tx*TILE-camX)-4, ty*TILE-32, 24, 32);
+    var dc = LEVEL[ty][tx];
+    if (ty!==14 || (dc!=='#' && dc!=='T') || tx%4!==0) continue;
+    if ((tx*3+ty)%7 >= 3) continue;
+    var dspr = DECOR[(tx/4)%DECOR.length];
+    if (!dspr) continue;
+    ctx.drawImage(dspr, Math.round(tx*TILE-camX)-8, ty*TILE, 32, 32);
   }
   const bob = Math.sin(performance.now()/400)*2;
   for (const s of shrooms){
