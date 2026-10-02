@@ -4,6 +4,7 @@ body{background:#12141f;color:#e8e0cf;font-family:monospace;margin:0;padding:16p
 h1{font-size:18px;margin:0 0 8px} h1 small{color:#7ee081;font-weight:normal}
 .hud{display:flex;gap:16px;align-items:center;margin-bottom:8px;font-size:13px;flex-wrap:wrap}
 #shrooms,#timer,#lives,#level{background:#2a2d44;padding:4px 10px;border-radius:6px}
+#level{cursor:pointer} #level:hover{background:#7ee081;color:#12141f}
 #msg{color:#ffd83d}
 .keys{color:#8a8fa8}
 canvas{width:960px;max-width:96vw;image-rendering:pixelated;image-rendering:crisp-edges;background:#0b0e1a;border:4px solid #000;border-radius:8px;touch-action:none}

@@ -191,6 +191,44 @@ let camX = 0;
 let lives = 3, dying = 0, gameover = false, spawnX = 0, spawnY = 0;
 // зона выхода (совпадает с зелёной поляной в рендере)
 let t0 = 0, finalTime = 0, lastSec = -1, exitHint = false;
+// Честный счётчик: время пройденных уровней копится в totalElapsed.
+// Дебаг-прыжки (цифры/скобки/тап) время не банкуют — только честный финиш.
+let totalElapsed = 0;
+function bankLevel(){
+  totalElapsed += (performance.now()-t0)/1000;
+}
+// Победа: рекорд в localStorage + конфетти для баннера.
+let bestTime = 0, confetti = [], isRecord = false;
+function loadBest(){
+  try{
+    if (typeof localStorage === 'undefined') return 0;
+    return parseFloat(localStorage.getItem('manul_best')) || 0;
+  }catch(e){ return 0; }
+}
+function saveBest(s){
+  try{
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem('manul_best', String(s));
+  }catch(e){}
+}
+function seedConfetti(){
+  confetti = [];
+  var cols = ['#ffd83d','#7ee081','#ff6b6b','#4aa8ff','#e58aa5','#8b5cf6'];
+  for (var i=0;i<90;i++){
+    confetti.push({x: Math.random()*W, y: -10-Math.random()*H,
+      vy: 40+Math.random()*90, ph: Math.random()*7, c: cols[i%cols.length]});
+  }
+}
+// Вызывается один раз в момент победы (последний выход со всей добычей).
+function onWin(){
+  bankLevel();
+  won = true; finalTime = totalElapsed;
+  isRecord = !bestTime || finalTime < bestTime;
+  if (isRecord){ bestTime = finalTime; saveBest(finalTime); }
+  seedConfetti();
+  stopMusic(); // фон молчит, слышна только победная мелодия
+  sfx.fanfare(); updateHud();
+}
 
 function fmt(s){ const m=Math.floor(s/60), ss=Math.floor(s%60); return m+':'+String(ss).padStart(2,'0'); }
 
@@ -222,7 +260,8 @@ function reset(full){
   foes = []; boxes = []; drops = [];
   dying = 0; gameover = false; wasAnom = false;
   t0 = performance.now(); finalTime = 0; lastSec = -1; exitHint = false;
-  document.getElementById('timer').textContent = '⏱ 0:00';
+  if (full) totalElapsed = 0;
+  document.getElementById('timer').textContent = '⏱ ' + fmt(totalElapsed);
   for (let y=0;y<ROWS;y++) for (let x=0;x<COLS;x++){
     const c = LEVEL[y][x];
     if (c==='S'){ spawnX=x*TILE+2; spawnY=y*TILE-20; player.x=spawnX; player.y=spawnY; }
@@ -233,16 +272,27 @@ function reset(full){
   }
   total = shrooms.length + boxes.length;
   player.vx = 0; player.vy = 0;
+  player.face = EXIT.x>=spawnX ? 1 : -1; // смотрим в сторону выхода, а не куда бежали до смерти
   // лисы стартуют ОТ манула (вежливость): справа от спавна — вправо, слева — влево
   for (const f of foes){ f.d0 = f.sx >= spawnX ? 1 : -1; f.dir = f.d0; }
   document.getElementById('level').textContent = '🌲 ' + (levelIdx+1) + '/' + LEVELS.length;
+  updateKeysHint();
   document.getElementById('msg').textContent = 'Собери всю добычу — перепёлок и крыс!';
   updateHud();
+}
+// Подсказка управления всегда честная: цифры — сколько есть (макс 9 за раз),
+// дальше листать скобками. Работает при любом числе уровней.
+function updateKeysHint(){
+  var el = document.getElementById('keys');
+  if (!el) return;
+  var n = Math.min(LEVELS.length, 9);
+  el.textContent = 'A/D или ←/→ — идти, Space/W/↑ — прыжок, R — рестарт, M — звук, N — музыка, 1-' + n + ' и [ ] — уровни, тап по 🌲 — следующий';
 }
 function updateHud(){
   document.getElementById('shrooms').textContent = `⭐ ${taken}/${total}`;
   document.getElementById('lives').textContent = '🐱×' + lives;
-  if (won) document.getElementById('msg').textContent = '✅ Лес пройден за ' + fmt(finalTime) + '! R или ⟳ — ещё раз';
+  if (won) document.getElementById('msg').textContent = '✅ Зажировка удалась за ' + fmt(finalTime) +
+    (isRecord ? ' — новый рекорд!' : ' (рекорд ' + fmt(bestTime) + ')') + ' Манул готов к зиме! R или ⟳ — ещё раз';
 }
 
 // смерть по-марио: подброс вверх, падение сквозь мир, затем респаун или конец игры
@@ -253,12 +303,13 @@ function startDeath(){
 }
 function respawn(){
   player.x = spawnX; player.y = spawnY; player.vx = 0; player.vy = 0;
+  player.face = EXIT.x>=spawnX ? 1 : -1;
   player.coyote = 0; player.buffer = 0; wasAnom = false;
   for (const f of foes){ if (f.alive){ f.x = f.sx; f.y = f.sy; f.vy = 0; f.dir = f.d0; } }
     document.getElementById('msg').textContent = taken===total ? 'Вся добыча собрана! Беги на зелёную поляну →' : 'Собери всю добычу — перепёлок и крыс!';
 }
 function doGameOver(){
-  gameover = true; finalTime = (performance.now()-t0)/1000;
+  gameover = true; finalTime = totalElapsed + (performance.now()-t0)/1000;
   stopMusic(); // мелодия молчит, слышно только джингл поражения
   sfx.lose();
   document.getElementById('msg').textContent = '💀 Игра окончена. R или ⟳ — заново';
@@ -273,12 +324,20 @@ addEventListener('keydown', e=>{
   if (e.code==='KeyR'){ sfx.click(); reset(); }
   if (e.code==='KeyM') toggleMute();
   if (e.code==='KeyN') toggleMusic();
-  // дебаг для теста: цифры 1-6 — прыжок на уровень (жизни сохраняются, таймер заново)
+  // дебаг для теста: цифры — прыжок на уровень, [ ] — листать
+  // (жизни сохраняются, таймер заново). Работает при любом числе уровней.
   if (e.code.indexOf('Digit')===0){
     var n = +e.code.slice(5);
-    if (n>=1 && n<=LEVELS.length){
+    if (n>=1 && n<=LEVELS.length && n<=9){
       levelIdx = n-1; sfx.click(); reset(false);
       document.getElementById('msg').textContent = '🛠 Тест: уровень ' + n + ': ' + LEVELS[levelIdx].name;
+    }
+  }
+  if (e.code==='BracketLeft' || e.code==='BracketRight'){
+    if (LEVELS.length>1){
+      levelIdx = (levelIdx + (e.code==='BracketRight' ? 1 : LEVELS.length-1)) % LEVELS.length;
+      sfx.click(); reset(false);
+      document.getElementById('msg').textContent = '🛠 Тест: уровень ' + (levelIdx+1) + ': ' + LEVELS[levelIdx].name;
     }
   }
 });
@@ -315,6 +374,13 @@ const sfx = {
   stomp(){ tone(500, 150, 0.15, 'square', 0.11); tone(900, 900, 0.08, 'sine', 0.10, 0.05); },
   box(){ tone(200, 800, 0.12, 'square', 0.10); tone(1200, 1200, 0.08, 'sine', 0.09, 0.10); },
   win(){ const n=[523,659,784,1046]; for (let i=0;i<n.length;i++) tone(n[i], n[i], 0.14, 'triangle', 0.11, i*0.11); },
+  // Победная мелодия (финал): восходящая фанфара + качели + высокий аккорд.
+  // Играется поверх tone(), фоновая к этому моменту уже остановлена (см. onWin).
+  fanfare(){
+    const seq=[[523,0],[659,0.12],[784,0.24],[1046,0.36],[784,0.55],[1046,0.67],[784,0.79],[1046,0.91],[1318,1.10]];
+    for (let i=0;i<seq.length;i++) tone(seq[i][0], seq[i][0], 0.22, 'triangle', 0.12, seq[i][1]);
+    tone(523,523,0.6,'triangle',0.10,1.35); tone(659,659,0.6,'triangle',0.10,1.35); tone(784,784,0.6,'triangle',0.10,1.35);
+  },
   lose(){ const n=[659,523,440,330]; for (let i=0;i<n.length;i++) tone(n[i], n[i]*0.98, 0.25, 'triangle', 0.11, i*0.17); },
   anomaly(){ tone(200, 900, 0.35, 'sine', 0.05); },
   click(){ tone(600, 600, 0.05, 'square', 0.07); },
@@ -379,6 +445,19 @@ bindTouch('btn-jump', 'Space');
   const go = e => { e.preventDefault(); gesture(); sfx.click(); reset(); };
   el.addEventListener('touchstart', go, {passive:false});
   el.addEventListener('mousedown', go);
+})();
+// тап по счётчику уровней = следующий уровень (для телефона; аналог ]).
+// Только 'click' (без пары touchstart/mousedown — иначе на мобиле сработает дважды).
+(function(){
+  const el = document.getElementById('level');
+  if (!el) return;
+  el.addEventListener('click', e => {
+    e.preventDefault(); gesture();
+    if (LEVELS.length<2) return;
+    levelIdx = (levelIdx+1)%LEVELS.length;
+    sfx.click(); reset(false);
+    document.getElementById('msg').textContent = '🛠 Уровень ' + (levelIdx+1) + ': ' + LEVELS[levelIdx].name;
+  });
 })();
 (function(){ // кнопка mute в HUD
   const el = document.getElementById('btn-mute');
@@ -535,6 +614,7 @@ async function boot(){
   IM = {idle,w1,w2,jump,dirt,dirtTop,anom,quail,rat,fox1,fox2,box,boxopen,
     dStone,dShr,dShrB,dShrM,dBerry};
   await loadLevels();
+  bestTime = loadBest();
   reset();
   requestAnimationFrame(loop);
 }
@@ -604,7 +684,7 @@ function loop(t){
     }
   }
   // таймер (стоит на паузе после победы или конца игры)
-  const elapsed = (won || gameover) ? finalTime : (performance.now()-t0)/1000;
+  const elapsed = (won || gameover) ? finalTime : totalElapsed + (performance.now()-t0)/1000;
   const sec = Math.floor(elapsed);
   if (sec !== lastSec){ lastSec = sec; document.getElementById('timer').textContent = '⏱ ' + fmt(elapsed); }
 
@@ -615,11 +695,11 @@ function loop(t){
   if (touchExit && !won){
     if (taken >= total){
       if (levelIdx < LEVELS.length-1){
+        bankLevel();
         levelIdx++; sfx.win(); reset(false); // дальше: жизни сохраняются, таймер заново
         document.getElementById('msg').textContent = '🌲 Уровень ' + (levelIdx+1) + ': ' + LEVELS[levelIdx].name + '!';
       } else {
-        won = true; finalTime = (performance.now()-t0)/1000;
-        sfx.win(); updateHud();
+        onWin();
       }
     } else if (!exitHint){
       exitHint = true; sfx.denied();
@@ -737,6 +817,30 @@ function loop(t){
       ctx.fillStyle = '#ffd83d'; ctx.font = 'bold 16px monospace';
       ctx.fillText('Ой! Манул упал...', W/2, H/2);
     }
+    ctx.textAlign = 'left';
+  }
+
+  // победный баннер: вуаль + кубок + время/рекорд + конфетти
+  if (won){
+    ctx.fillStyle = 'rgba(10,14,10,0.55)'; ctx.fillRect(0, 0, W, H);
+    for (var i=0;i<confetti.length;i++){
+      var p = confetti[i];
+      p.y += p.vy*dt; p.ph += dt*6;
+      if (p.y > H+6){ p.y = -6; p.x = Math.random()*W; }
+      ctx.fillStyle = p.c;
+      ctx.fillRect(p.x+Math.sin(p.ph)*3, p.y, 3, 5);
+    }
+    ctx.textAlign = 'center';
+    var bobY = Math.sin(performance.now()/300)*3;
+    ctx.fillStyle = '#ffd83d'; ctx.font = 'bold 24px monospace';
+    ctx.fillText('🏆 ЗАЖИРОВАЛСЯ!', W/2, H/2-36+bobY);
+    ctx.fillStyle = '#eee'; ctx.font = '11px monospace';
+    ctx.fillText('Манул нагулял жирок и готов к зиме!', W/2, H/2-8);
+    ctx.fillText('Время: ' + fmt(finalTime) + '   Добыча: ' + taken + '/' + total, W/2, H/2+10);
+    ctx.fillStyle = '#7ee081';
+    ctx.fillText(isRecord ? '⏱ Новый рекорд!' : '⏱ Рекорд: ' + fmt(bestTime), W/2, H/2+28);
+    ctx.fillStyle = '#ffd83d';
+    ctx.fillText('R или ⟳ — ещё раз', W/2, H/2+48);
     ctx.textAlign = 'left';
   }
 

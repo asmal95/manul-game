@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Манул: Зажировка — платформер v0.26</title>
+<title>Манул: Зажировка — платформер v0.32</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div class="wrap">
-  <h1>🐾 Манул: Зажировка <small>v0.26, земля и артефакты</small></h1>
+  <h1>🐾 Манул: Зажировка <small>v0.32, победная мелодия</small></h1>
   <div class="hud">
     <span id="shrooms">⭐ 0/0</span>
     <span id="lives">🐱×3</span>
-    <span id="level">🌲 1/8</span>
+    <span id="level" title="Тап — следующий уровень">🌲 1/8</span>
     <span id="timer">⏱ 0:00</span>
     <span id="msg">Собери всю добычу — перепёлок и крыс!</span>
     <button id="btn-restart" aria-label="Начать заново">⟳ Заново</button>
     <button id="btn-mute" aria-label="Звук вкл/выкл">🔊</button>
     <button id="btn-music" aria-label="Мелодия вкл/выкл">🎵</button>
-    <span class="keys">A/D или ←/→ — идти, Space/W/↑ — прыжок, R — рестарт, M — звук, N — музыка, 1-8 — уровень</span>
+    <span class="keys" id="keys">A/D или ←/→ — идти, Space/W/↑ — прыжок, R — рестарт, M — звук, N — музыка, 1-9 и [ ] — уровни, тап по 🌲 — следующий</span>
   </div>
   <canvas id="game" width="480" height="270"></canvas>
   <div id="touch">
