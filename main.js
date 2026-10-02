@@ -176,7 +176,10 @@ applyPits(LEVELS);
 let LEVEL = LEVELS[0].map, ROWS = LEVEL.length, COLS = LEVEL[0].length, levelIdx = 0;
 let EXIT = {x: 0, y: 0, w: 24, h: 32};
 
-function load(src){ return new Promise(res=>{ const i=new Image(); i.src=src; i.onload=()=>res(i); i.onerror=()=>res(null); }); }
+// Версия ассетов для кеш-бастинга: менять при любом изменении картинок,
+// чтобы браузер подтянул свежие спрайты без Ctrl+F5.
+const ASSET_V = '?v=26';
+function load(src){ return new Promise(res=>{ const i=new Image(); i.src=src+ASSET_V; i.onload=()=>res(i); i.onerror=()=>res(null); }); }
 
 const player = { x:0, y:0, w:16, h:24, vx:0, vy:0, onGround:false, face:1, coyote:0, buffer:0, anim:0 };
 let shrooms = [], taken = 0, total = 0, won = false;
@@ -517,19 +520,20 @@ async function loadLevels(){
 
 let IM = {};
 async function boot(){
-  const [idle,w1,w2,jump,grass,anom,quail,rat,fox1,fox2,box,boxopen,
-    dStone,dBones,dSkull,dOwl] = await Promise.all([
+  const [idle,w1,w2,jump,dirt,dirtTop,anom,quail,rat,fox1,fox2,box,boxopen,
+    dStone,dShr,dShrB,dShrM,dBerry] = await Promise.all([
     load('assets/sprites/manul_big_idle.png'), load('assets/sprites/manul_big_walk1.png'),
     load('assets/sprites/manul_big_walk2.png'), load('assets/sprites/manul_big_jump.png'),
-    load('assets/tiles/grass.png'),
+    load('assets/tiles/dirt.png'), load('assets/tiles/dirt_grass.png'),
     load('assets/tiles/anomaly.png'), load('assets/tiles/quail.png'), load('assets/tiles/rat.png'),
     load('assets/sprites/fox_walk1.png'), load('assets/sprites/fox_walk2.png'),
     load('assets/tiles/box.png'), load('assets/tiles/box_open.png'),
-    load('assets/tiles/decor_stone.png'), load('assets/tiles/decor_bones.png'),
-    load('assets/tiles/decor_skull.png'), load('assets/tiles/decor_owl.png'),
+    load('assets/tiles/decor_stone.png'), load('assets/tiles/decor_shroom.png'),
+    load('assets/tiles/decor_shroom_brown.png'), load('assets/tiles/decor_shroom_mini.png'),
+    load('assets/tiles/decor_berry.png'),
   ]);
-  IM = {idle,w1,w2,jump,grass,anom,quail,rat,fox1,fox2,box,boxopen,
-    dStone,dBones,dSkull,dOwl};
+  IM = {idle,w1,w2,jump,dirt,dirtTop,anom,quail,rat,fox1,fox2,box,boxopen,
+    dStone,dShr,dShrB,dShrM,dBerry};
   await loadLevels();
   reset();
   requestAnimationFrame(loop);
@@ -643,25 +647,27 @@ function loop(t){
   if (anom) ctx.translate(Math.random()*2-1, Math.random()*2-1);
 
   const x0=Math.floor(camX/TILE)-1, x1=x0+W/TILE+3;
+  // Артефакты-фон: камень, грибы (3 вида), рябина (детерминированный разброс).
+  var DECOR = [IM.dStone, IM.dShr, IM.dShrB, IM.dShrM, IM.dBerry];
   for (let ty=0;ty<ROWS;ty++) for (let tx=Math.max(0,x0);tx<Math.min(COLS,x1);tx++){
     const c=LEVEL[ty][tx], dx=Math.round(tx*TILE-camX), dy=ty*TILE;
-    if (c==='#'||c==='T'){ ctx.drawImage(IM.grass,dx,dy); if(ty>0&&LEVEL[ty-1][tx]==='.'&&IM.grass) ctx.drawImage(IM.grass,dx,dy); }
+    if (c==='#'||c==='T'){
+      // Открытый верх (над клеткой не solid) — дёрн с травой, иначе голая земля.
+      var ab = ty>0 ? LEVEL[ty-1][tx] : '.';
+      var openTop = ab!=='#' && ab!=='P' && ab!=='T' && ab!=='B';
+      ctx.drawImage(openTop ? IM.dirtTop : IM.dirt, dx, dy);
+      // Фон (T) темнее — читается глубина; декор поверх остаётся ярким.
+      if (c==='T'){ ctx.fillStyle='rgba(0,0,0,0.38)'; ctx.fillRect(dx, dy, TILE, TILE); }
+      // Закопанный артефакт: рисуем на 8px выше клетки — низ накроет земля
+      // ряда 15 (цикл идёт сверху вниз). Только если сверху тоже земля,
+      // иначе верхушка торчала бы в воздухе.
+      if (ty===14 && tx%4===0 && (tx*3+ty)%7 < 3 && (ab==='#' || ab==='T')){
+        var dspr = DECOR[(tx+levelIdx*2)%DECOR.length];
+        if (dspr) ctx.drawImage(dspr, dx-8, dy-8, 32, 32);
+      }
+    }
     else if (c==='P'){ ctx.fillStyle='#6b4a2f'; ctx.fillRect(dx,dy+4,TILE,8); ctx.fillStyle='#8a6238'; ctx.fillRect(dx,dy+4,TILE,2); }
     else if (c==='A'){ ctx.drawImage(IM.anom,dx,dy); }
-  }
-  // фон-декор на земле: камень, косточки, череп, совёнок.
-  // Детерминированный разброс (без рандома — картинка стабильна между кадрами).
-  // Редко (ряд 14, каждая четвёртая колонка), крупно (32x32 на ряды 14-15).
-  // Встаёт на любую землю (# и T) — равномерно по всему уровню, не кучкой.
-  // Это под ногами, геймплею не мешает.
-  var DECOR = [IM.dStone, IM.dBones, IM.dSkull, IM.dOwl];
-  for (let ty=0;ty<ROWS;ty++) for (let tx=Math.max(0,x0);tx<Math.min(COLS,x1);tx++){
-    var dc = LEVEL[ty][tx];
-    if (ty!==14 || (dc!=='#' && dc!=='T') || tx%4!==0) continue;
-    if ((tx*3+ty)%7 >= 3) continue;
-    var dspr = DECOR[(tx/4)%DECOR.length];
-    if (!dspr) continue;
-    ctx.drawImage(dspr, Math.round(tx*TILE-camX)-8, ty*TILE, 32, 32);
   }
   const bob = Math.sin(performance.now()/400)*2;
   for (const s of shrooms){
